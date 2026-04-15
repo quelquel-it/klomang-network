@@ -1,0 +1,39 @@
+[package]
+name = "klomang-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Klomang Development Team <dev@klomang.org>"]
+description = "Core Klomang blockchain engine: consensus, state, crypto, VM, scheduler."
+homepage = "https://github.com/klomang/klomang-core"
+repository = "https://github.com/klomang/klomang-core"
+documentation = "https://docs.rs/klomang-core"
+license = "Apache-2.0"
+keywords = ["blockchain", "DAG", "consensus", "verkle", "schnorr", "wasm", "gas"]
+categories = ["cryptography", "consensus", "data-structures", "blockchain"]
+readme = "README.md"
+
+[lib]
+name = "klomang_core"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[dependencies]
+thiserror = "1.0"
+wasmer = "3.3.0"
+wasmer-middlewares = "3.3.0"
+blake3 = "1.5"
+k256 = { version = "0.13", features = ["schnorr"] }
+rand = "0.8"
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+ark-ec = "0.4"
+ark-ff = "0.4"
+num_cpus = "1.16"
+sys-info = "0.9"
+ark-poly = "0.4"
+ark-bls12-381 = "0.4"
+ark-ed-on-bls12-381 = "0.4"
+ark-ed-on-bls12-381-bandersnatch = "0.4"
+ark-serialize = "0.4"
+rayon = "1.7"
+bincode = "1.0"

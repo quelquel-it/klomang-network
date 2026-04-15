@@ -1,0 +1,16 @@
+# Rust build artifacts
+target/
+
+# HTML reports (e.g., tarpaulin coverage reports)
+*.html
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Log files
+*.log
