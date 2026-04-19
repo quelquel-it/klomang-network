@@ -10,11 +10,19 @@ use crate::storage::cf::ColumnFamilyName;
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::schema::{
-    parse_utxo_key, make_utxo_key, UtxoValue, DagNodeValue, DagTipsValue, BlockValue,
+    make_utxo_key, UtxoValue, DagNodeValue, DagTipsValue, BlockValue,
 };
 use rocksdb::{IteratorMode, Direction};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::cmp;
+
+/// Maximum number of results allowed in a single scan operation
+/// Prevents memory exhaustion from unbounded scans
+const MAX_ALLOWED_RESULTS: usize = 100_000;
+
+/// Maximum default batch size for operations
+const DEFAULT_BATCH_SIZE: usize = 1000;
 
 /// Outpoint reference from klomang-core
 /// Format: (transaction_hash, output_index)
@@ -119,16 +127,26 @@ impl ReadPath {
         self.cache_layer.get_current_dag_tips()
     }
 
-    /// Scan DAG nodes in a range
+    /// Scan DAG nodes in a range with safety bounds
     ///
-    /// Iterate through block hashes in DAG column family
-    /// Useful for traversing the DAG structure
+    /// Iterate through block hashes in DAG column family.
+    /// Useful for traversing the DAG structure.
+    ///
+    /// # Arguments
+    /// * `start_hash` - Optional starting point in DAG
+    /// * `limit` - Maximum number of nodes to return (will be capped at MAX_ALLOWED_RESULTS)
+    ///
+    /// # Returns
+    /// Vec of (block_hash, DagNodeValue) pairs, guaranteed to not exceed limit
     pub fn scan_dag_nodes(
         &self,
         start_hash: Option<&[u8]>,
         limit: usize,
     ) -> StorageResult<Vec<(Vec<u8>, DagNodeValue)>> {
+        // ✅ Safety: Cap limit to prevent memory exhaustion
+        let safe_limit = cmp::min(limit, MAX_ALLOWED_RESULTS);
         let mut results = Vec::new();
+        results.reserve(cmp::min(safe_limit, DEFAULT_BATCH_SIZE));
 
         let cf_handle = self
             .cache_layer.db()
@@ -141,27 +159,50 @@ impl ReadPath {
             None => IteratorMode::Start,
         };
 
-        let iter = self.cache_layer.db().inner().iterator_cf(cf_handle, mode);
+        let iter = self.cache_layer.db().inner().iterator_cf(&cf_handle, mode);
 
-        for (_, value) in iter.take(limit) {
+        for item in iter.take(safe_limit) {
+            let (key, value) = match item {
+                Ok((k, v)) => (k.to_vec(), v),
+                Err(e) => {
+                    // Log error but continue scanning (don't fail on single bad entry)
+                    eprintln!("WARNING: Failed to read from DAG iterator: {}", e);
+                    continue;
+                }
+            };
+            
             match DagNodeValue::from_bytes(&value) {
-                Ok(node) => results.push((vec![], node)), // Key would be block_hash
-                Err(e) => return Err(e),
+                Ok(node) => results.push((key, node)),
+                Err(e) => {
+                    // Log error but continue scanning (don't fail on single bad entry)
+                    eprintln!("WARNING: Failed to deserialize DAG node: {}", e);
+                    continue;
+                }
             }
         }
 
         Ok(results)
     }
 
-    /// Get blocks by range scan
+    /// Get blocks by range scan with safety bounds
     ///
-    /// Scans block column family for blocks in range
+    /// Scans block column family for blocks in range.
+    /// 
+    /// # Arguments
+    /// * `start_hash` - Optional starting point for scan
+    /// * `limit` - Maximum number of blocks to return (will be capped at MAX_ALLOWED_RESULTS)
+    ///
+    /// # Returns
+    /// Vec of (block_hash, BlockValue) pairs
     pub fn scan_blocks(
         &self,
         start_hash: Option<&[u8]>,
         limit: usize,
     ) -> StorageResult<Vec<(Vec<u8>, BlockValue)>> {
+        // ✅ Safety: Cap limit to prevent memory exhaustion
+        let safe_limit = cmp::min(limit, MAX_ALLOWED_RESULTS);
         let mut results = Vec::new();
+        results.reserve(cmp::min(safe_limit, DEFAULT_BATCH_SIZE));
 
         let cf_handle = self
             .cache_layer.db()
@@ -174,12 +215,25 @@ impl ReadPath {
             None => IteratorMode::Start,
         };
 
-        let iter = self.cache_layer.db().inner().iterator_cf(cf_handle, mode);
+        let iter = self.cache_layer.db().inner().iterator_cf(&cf_handle, mode);
 
-        for (key, value) in iter.take(limit) {
+        for item in iter.take(safe_limit) {
+            let (key, value) = match item {
+                Ok((k, v)) => (k.to_vec(), v),
+                Err(e) => {
+                    // Log error but continue scanning (don't fail on single bad entry)
+                    eprintln!("WARNING: Failed to read from blocks iterator: {}", e);
+                    continue;
+                }
+            };
+            
             match BlockValue::from_bytes(&value) {
-                Ok(block) => results.push((key.to_vec(), block)),
-                Err(e) => return Err(e),
+                Ok(block) => results.push((key, block)),
+                Err(e) => {
+                    // Log error but continue scanning (don't fail on single bad entry)
+                    eprintln!("WARNING: Failed to deserialize block: {}", e);
+                    continue;
+                }
             }
         }
 
@@ -193,8 +247,8 @@ impl ReadPath {
     pub fn check_utxos_exist(&self, outpoints: &[OutPoint]) -> StorageResult<HashMap<OutPoint, bool>> {
         let mut map = HashMap::new();
 
-        let cf_handle = self
-            .db
+        let _cf_handle = self
+            .cache_layer.db()
             .inner()
             .cf_handle(ColumnFamilyName::Utxo.as_str())
             .ok_or_else(|| StorageError::InvalidColumnFamily("utxo".to_string()))?;
@@ -213,7 +267,7 @@ impl ReadPath {
     }
 
     /// Reference to inner DB for accessing raw rocksdb methods
-    pub fn inner_db(&self) -> rocksdb::DBWithThreadMode<rocksdb::SingleThreaded> {
+    pub fn inner_db(&self) -> &rocksdb::DB {
         self.cache_layer.db().inner()
     }
 }

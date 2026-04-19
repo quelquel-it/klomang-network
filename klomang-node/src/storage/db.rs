@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use rocksdb::{BlockBasedOptions, Cache, ColumnFamilyDescriptor, DB, DBCompactionStyle, DBCompressionType, Error, Options, Snapshot, WriteOptions, SliceTransform};
 
-use crate::storage::batch::WriteBatch;
+use crate::storage::batch::{WriteBatch, WriteOp};
 use crate::storage::cf::{all_column_families, ColumnFamilyName};
 use crate::storage::config::StorageConfig;
 use crate::storage::metrics::{StorageMetrics, LatencyTimer};
@@ -53,14 +53,25 @@ fn configure_cf_options(cf_name: ColumnFamilyName, base_options: &Options, confi
     let block_options = create_cf_block_based_options(cf_name, config);
     cf_options.set_block_based_table_factory(&block_options);
 
+    // ✅ Compression strategy per column family
+    // UTXO: No compression (hot random access needs speed)
+    // UtxoSpent: Light compression (sequential scans benefit from compression)
+    // Blocks/Headers/Transactions: Heavy compression (cold reference data)
     match cf_name {
-        ColumnFamilyName::Utxo | ColumnFamilyName::UtxoSpent => {
+        ColumnFamilyName::Utxo => {
+            // Hot data: compression disabled for speed
             cf_options.set_compression_type(DBCompressionType::None);
         }
+        ColumnFamilyName::UtxoSpent => {
+            // Warm sequential data: light compression
+            cf_options.set_compression_type(DBCompressionType::Lz4);
+        }
         ColumnFamilyName::Blocks | ColumnFamilyName::Headers | ColumnFamilyName::Transactions => {
+            // Cold reference data: heavy compression (Zstd)
             cf_options.set_compression_type(DBCompressionType::Zstd);
         }
         _ => {
+            // Default compression
             cf_options.set_compression_type(DEFAULT_COMPRESSION_TYPE);
         }
     }
@@ -69,34 +80,67 @@ fn configure_cf_options(cf_name: ColumnFamilyName, base_options: &Options, confi
 }
 
 /// Creates BlockBasedOptions with CF-specific optimizations
+/// 
+/// Tunes each column family based on its access pattern:
+/// - UTXO: Hot random access -> small blocks, high bloom bits, minimal compression
+/// - UtxoSpent: Cold sequential scan -> large blocks, compression
+/// - Blocks/Headers/Transactions: Cold reference data -> max compression, large blocks
 fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConfig) -> BlockBasedOptions {
     let mut block_options = BlockBasedOptions::default();
 
     match cf_name {
-        ColumnFamilyName::Utxo | ColumnFamilyName::UtxoSpent => {
-            // Hot data: Aggressive caching, in-memory if possible
-            let cache = Cache::new_lru_cache(config.hot_data_cache_size);
+        ColumnFamilyName::Utxo => {
+            // ✅ Hot data: Aggressive caching for UTXO lookups (random access pattern)
+            let cache = Cache::new_lru_cache(config.hot_data_cache_size / 2);
             block_options.set_block_cache(&cache);
-            block_options.set_block_size(16 * 1024); // Smaller blocks for hot data
-        }
-        ColumnFamilyName::Blocks | ColumnFamilyName::Headers | ColumnFamilyName::Transactions => {
-            // Cold data: Higher compression, smaller cache
-            let cache = Cache::new_lru_cache(config.cold_data_cache_size);
+            block_options.set_block_size(8 * 1024); // 8KB blocks for better cache hits
+            block_options.set_bloom_filter(12.0, true); // Higher bloom bits for hot data
+            block_options.set_cache_index_and_filter_blocks(true);
+            block_options.set_pin_l0_filter_and_index_blocks_in_cache(true);
+        },
+        ColumnFamilyName::UtxoSpent => {
+            // ✅ Cold sequential scan: Balance between cache and compression
+            let cache = Cache::new_lru_cache(config.hot_data_cache_size / 2);
             block_options.set_block_cache(&cache);
-            block_options.set_block_size(64 * 1024); // Larger blocks for cold data
-        }
+            block_options.set_block_size(64 * 1024); // 64KB blocks for compression efficiency
+            block_options.set_bloom_filter(8.0, true); // Moderate bloom bits
+            block_options.set_cache_index_and_filter_blocks(true);
+        },
+        ColumnFamilyName::Blocks => {
+            // ✅ Cold reference data: Maximize compression, reference access
+            let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
+            block_options.set_block_cache(&cache);
+            block_options.set_block_size(64 * 1024); // 64KB blocks
+            block_options.set_bloom_filter(10.0, true);
+            block_options.set_cache_index_and_filter_blocks(true);
+        },
+        ColumnFamilyName::Headers => {
+            // ✅ Very cold reference: Minimal cache, maximum compression
+            let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
+            block_options.set_block_cache(&cache);
+            block_options.set_block_size(64 * 1024);
+            block_options.set_bloom_filter(10.0, true);
+        },
+        ColumnFamilyName::Transactions => {
+            // ✅ Cold reference data: Balance of compression and random access
+            let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
+            block_options.set_block_cache(&cache);
+            block_options.set_block_size(64 * 1024); // 64KB blocks
+            block_options.set_bloom_filter(10.0, true);
+            block_options.set_cache_index_and_filter_blocks(true);
+        },
         _ => {
             // Default for other CFs
             let cache = Cache::new_lru_cache(config.block_cache_size);
             block_options.set_block_cache(&cache);
             block_options.set_block_size(config.block_size);
+            block_options.set_bloom_filter(config.bloom_bits_per_key as f64, true);
         }
     }
 
-    // Common optimizations
+    // Common optimizations for all column families
     block_options.set_cache_index_and_filter_blocks(true);
     block_options.set_pin_l0_filter_and_index_blocks_in_cache(true);
-    block_options.set_bloom_filter(config.bloom_bits_per_key as f64, true);
     block_options.set_whole_key_filtering(true);
 
     block_options
@@ -122,7 +166,7 @@ impl StorageDb {
     }
 
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let metrics = Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector)));
+        let _metrics = Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector)));
         Self::open(path.as_ref(), path.as_ref())
     }
 
@@ -194,15 +238,51 @@ impl StorageDb {
     pub fn write_batch(&self, batch: WriteBatch) -> Result<(), Error> {
         let metrics = Arc::clone(&self.metrics);
         let _timer = LatencyTimer::new(move |d| metrics.record_write_latency(d));
-        self.inner.write(batch.into_inner())
+        
+        let mut rb = rocksdb::WriteBatch::default();
+        for op in batch.into_inner() {
+            match op {
+                WriteOp::Put(key, value) => rb.put(&key, &value),
+                WriteOp::Delete(key) => rb.delete(&key),
+                WriteOp::PutCf(cf_name, key, value) => {
+                    if let Some(cf_handle) = self.inner.cf_handle(&cf_name) {
+                        rb.put_cf(&cf_handle, &key, &value);
+                    }
+                }
+                WriteOp::DeleteCf(cf_name, key) => {
+                    if let Some(cf_handle) = self.inner.cf_handle(&cf_name) {
+                        rb.delete_cf(&cf_handle, &key);
+                    }
+                }
+            }
+        }
+        self.inner.write(rb)
     }
 
     pub fn write_batch_no_wal(&self, batch: WriteBatch) -> Result<(), Error> {
         let metrics = Arc::clone(&self.metrics);
         let _timer = LatencyTimer::new(move |d| metrics.record_write_latency(d));
+        
+        let mut rb = rocksdb::WriteBatch::default();
+        for op in batch.into_inner() {
+            match op {
+                WriteOp::Put(key, value) => rb.put(&key, &value),
+                WriteOp::Delete(key) => rb.delete(&key),
+                WriteOp::PutCf(cf_name, key, value) => {
+                    if let Some(cf_handle) = self.inner.cf_handle(&cf_name) {
+                        rb.put_cf(&cf_handle, &key, &value);
+                    }
+                }
+                WriteOp::DeleteCf(cf_name, key) => {
+                    if let Some(cf_handle) = self.inner.cf_handle(&cf_name) {
+                        rb.delete_cf(&cf_handle, &key);
+                    }
+                }
+            }
+        }
         let mut write_options = WriteOptions::default();
         write_options.disable_wal(true);
-        self.inner.write_opt(batch.into_inner(), &write_options)
+        self.inner.write_opt(rb, &write_options)
     }
 
     pub fn delete(&self, cf_name: ColumnFamilyName, key: &[u8]) -> Result<(), Error> {
@@ -352,13 +432,33 @@ impl StorageDb {
         &self.inner
     }
 
+    /// Get Arc reference to the underlying RocksDB instance for safe sharing
+    /// across threads without additional cloning overhead.
+    pub fn inner_arc(&self) -> Arc<DB> {
+        Arc::clone(&self.inner)
+    }
+
     /// Get reference to the underlying RocksDB instance (alias).
     pub fn rocksdb(&self) -> &DB {
         &self.inner
     }
 
     /// Create a consistent RocksDB snapshot for point-in-time backup and validation.
-    pub fn snapshot(&self) -> Snapshot {
+    pub fn snapshot(&self) -> Snapshot<'_> {
         self.inner.snapshot()
+    }
+
+    /// Clear all data and reset database to clean state.
+    /// ⚠️ DESTRUCTIVE: Deletes all content from all column families.
+    /// Useful for testing, corruption recovery, or full data reset.
+    pub fn clear_and_reset(&self) -> Result<(), Error> {
+        let cfs = all_column_families();
+        for &cf_name in cfs {
+            self.delete_range(cf_name, &[], &[0xFF; 255])?;
+        }
+        
+        // Flush to persist deletions
+        self.inner.flush()?;
+        Ok(())
     }
 }

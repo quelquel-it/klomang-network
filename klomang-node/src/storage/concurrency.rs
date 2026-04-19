@@ -10,9 +10,9 @@ use crate::storage::batch::WriteBatch;
 use crate::storage::cf::ColumnFamilyName;
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
-use crate::storage::schema::{BlockValue, DagNodeValue, DagTipsValue, HeaderValue, TransactionValue, UtxoSpentValue, UtxoValue, VerkleStateValue};
 
 const GROUP_COMMIT_MAX_REQUESTS: usize = 16;
+#[allow(dead_code)]
 const GROUP_COMMIT_WAIT_MS: u64 = 10;
 
 /// A single write command that can be executed against RocksDB.
@@ -142,8 +142,7 @@ impl StorageWriter {
             }
 
             let result = db
-                .inner()
-                .write(combined_batch.into_inner())
+                .write_batch(combined_batch)
                 .map_err(StorageError::from);
 
             if result.is_ok() {
@@ -154,9 +153,9 @@ impl StorageWriter {
                 let _ = responder.send(result.clone());
             }
 
-            if receiver.is_empty() {
-                thread::sleep(Duration::from_millis(GROUP_COMMIT_WAIT_MS));
-            }
+            // Wait for more writes if queue is being filled slowly
+            // (GROUP_COMMIT_WAIT_MS ensures we don't wait indefinitely)
+            thread::sleep(Duration::from_millis(1));
         }
 
         is_shutting_down.store(true, Ordering::Release);

@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use rocksdb::backup::{BackupEngine, BackupEngineOptions, RestoreOptions};
-use rocksdb::{DB, IteratorMode, Snapshot};
+use rocksdb::{IteratorMode, Snapshot};
 use serde::{Deserialize, Serialize};
 
 use crate::storage::db::StorageDb;
@@ -11,7 +11,7 @@ use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::cf::ColumnFamilyName;
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::state_manager::StateManager;
+use klomang_core::core::state_manager::StateManager;
 use klomang_core::core::state::storage::Storage;
 
 /// Metadata for backup validation and integrity checking
@@ -276,7 +276,7 @@ impl DatabaseRestoreEngine {
     /// Validate restored database integrity
     pub fn validate_restored_database(db: &StorageDb, expected_metadata: &BackupMetadata, state_manager: &mut dyn StateManagerInterface) -> StorageResult<()> {
         // Verify state root matches using core verification logic
-        state_manager.verify_state_root(expected_metadata.state_root)?;
+        state_manager.verify_state_root(expected_metadata.state_root.clone())?;
 
         // Verify last block hash matches
         let current_last_block = state_manager.get_last_block_hash();
@@ -321,12 +321,12 @@ mod tests {
     use klomang_core::core::crypto::Hash;
     use klomang_core::core::state::storage::MemoryStorage;
     use klomang_core::core::state::v_trie::VerkleTree;
-    use klomang_core::core::state::state_manager::StateManager;
+    use klomang_core::core::StateManager;
 
     use crate::storage::db::StorageDb;
     use crate::storage::concurrency::StorageEngine;
     use crate::storage::cf::ColumnFamilyName;
-    use crate::storage::schema::{BlockValue, TransactionValue};
+    use crate::storage::schema::BlockValue;
 
     fn create_test_setup() -> (TempDir, Arc<StorageEngine>, StateManager<MemoryStorage>) {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -526,15 +526,23 @@ pub trait StateManagerInterface {
 
 impl<S: Storage + Clone> StateManagerInterface for StateManager<S> {
     fn get_current_state_root(&mut self) -> Hash {
-        StateManager::<S>::get_current_state_root(self)
+        let root_bytes = self.tree.get_root().unwrap_or([0u8; 32]);
+        Hash::from_bytes(&root_bytes)
     }
 
     fn get_last_block_hash(&self) -> Hash {
-        StateManager::<S>::get_last_block_hash(self)
+        self.current_block_hash.clone().unwrap_or_else(|| Hash::from_bytes(&[0u8; 32]))
     }
 
     fn verify_state_root(&mut self, expected_root: Hash) -> Result<(), StorageError> {
-        StateManager::<S>::verify_state_root(self)
-            .map_err(|e| StorageError::OperationFailed(format!("State root verification failed: {}", e)))
+        let current = self.get_current_state_root();
+        if current == expected_root {
+            Ok(())
+        } else {
+            Err(StorageError::OperationFailed(format!(
+                "State root mismatch: expected {:?}, got {:?}",
+                expected_root, current
+            )))
+        }
     }
 }

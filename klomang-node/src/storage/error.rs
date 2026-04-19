@@ -8,6 +8,9 @@ pub enum StorageError {
     OperationFailed(String),
     ConfigError(String),
     SerializationError(String),
+    TypeMismatch(String),
+    RocksDbError(String),
+    LockError(String),
 }
 
 impl fmt::Display for StorageError {
@@ -19,6 +22,9 @@ impl fmt::Display for StorageError {
             StorageError::OperationFailed(msg) => write!(f, "operation failed: {}", msg),
             StorageError::ConfigError(msg) => write!(f, "config error: {}", msg),
             StorageError::SerializationError(msg) => write!(f, "serialization error: {}", msg),
+            StorageError::TypeMismatch(msg) => write!(f, "type mismatch: {}", msg),
+            StorageError::RocksDbError(msg) => write!(f, "rocksdb error: {}", msg),
+            StorageError::LockError(msg) => write!(f, "lock error: {}", msg),
         }
     }
 }
@@ -27,7 +33,12 @@ impl std::error::Error for StorageError {}
 
 impl From<rocksdb::Error> for StorageError {
     fn from(err: rocksdb::Error) -> Self {
-        StorageError::DbError(err.to_string())
+        let msg = err.to_string();
+        if msg.contains("lock held by") || msg.contains("IO error") {
+            StorageError::LockError(msg)
+        } else {
+            StorageError::RocksDbError(msg)
+        }
     }
 }
 

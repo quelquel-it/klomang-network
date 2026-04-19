@@ -3,7 +3,6 @@ use prometheus::{register_histogram, register_gauge, register_counter, Histogram
 use std::time::{Duration, Instant};
 use klomang_core::MetricsCollector;
 
-/// Global registry untuk metrics Prometheus.
 lazy_static! {
     pub static ref STORAGE_WRITE_LATENCY: Histogram = register_histogram!(
         "klomang_storage_write_latency_seconds",

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 pub const STORAGE_SCHEMA_VERSION: u32 = 1;
 
@@ -8,17 +7,26 @@ pub fn schema_description() -> &'static str {
 }
 
 // ============================================
-// KEY TYPES AND SERIALIZATION
+// GENERIC SERIALIZATION UTILITIES
 // ============================================
 
-/// Serialize value with bincode
-pub fn serialize_value<T: Serialize>(value: &T) -> Result<Vec<u8>, bincode::Error> {
+/// Generic serialize any type to bytes
+pub fn to_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, bincode::Error> {
     bincode::serialize(value)
 }
 
-/// Deserialize value with bincode
+/// Generic deserialize any type from bytes
+pub fn from_bytes<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, bincode::Error> {
+    bincode::deserialize(bytes)
+}
+
+/// Legacy functions for backward compatibility
+pub fn serialize_value<T: Serialize>(value: &T) -> Result<Vec<u8>, bincode::Error> {
+    to_bytes(value)
+}
+
 pub fn deserialize_value<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T, bincode::Error> {
-    bincode::deserialize(data)
+    from_bytes(data)
 }
 
 // ============================================
@@ -98,8 +106,7 @@ pub struct TransactionInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionOutput {
     pub amount: u64,
-    pub script: Vec<u8>,
-    pub owner: Vec<u8>,
+    pub pubkey_hash: Vec<u8>,  // Hash as bytes for serialization
 }
 
 impl TransactionValue {
@@ -119,17 +126,17 @@ impl TransactionValue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UtxoValue {
     pub amount: u64,
-    pub script: Vec<u8>,
-    pub owner: Vec<u8>,
+    pub pubkey_hash: Vec<u8>,  // Hash as bytes for serialization
+    pub script: Vec<u8>,       // Script bytes for serialization
     pub block_height: u32,
 }
 
 impl UtxoValue {
-    pub fn new(amount: u64, script: Vec<u8>, owner: Vec<u8>, block_height: u32) -> Self {
+    pub fn new(amount: u64, pubkey_hash: Vec<u8>, script: Vec<u8>, block_height: u32) -> Self {
         Self {
             amount,
+            pubkey_hash,
             script,
-            owner,
             block_height,
         }
     }

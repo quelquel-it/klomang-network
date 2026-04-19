@@ -1,0 +1,1820 @@
+ Downloading crates ...
+  Downloaded errno v0.3.14
+  Downloaded fastrand v2.4.1
+  Downloaded tokio-macros v2.7.0
+  Downloaded tempfile v3.27.0
+  Downloaded getrandom v0.3.4
+  Downloaded tokio v1.51.1
+  Downloaded rustix v1.1.4
+  Downloaded linux-raw-sys v0.12.1
+   Compiling libc v0.2.184
+   Compiling cfg-if v1.0.4
+   Compiling once_cell v1.21.4
+   Compiling zeroize v1.8.2
+   Compiling getrandom v0.2.17
+   Compiling jobserver v0.1.34
+   Compiling stable_deref_trait v1.2.1
+   Compiling typenum v1.19.0
+   Compiling cc v1.2.60
+   Compiling generic-array v0.14.9
+   Compiling subtle v2.6.1
+   Compiling either v1.15.0
+   Compiling const-oid v0.9.6
+   Compiling zerofrom v0.1.7
+   Compiling smallvec v1.15.1
+   Compiling yoke v0.8.2
+   Compiling rand_core v0.6.4
+   Compiling zerovec v0.11.6
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.6
+   Compiling digest v0.10.7
+   Compiling ahash v0.7.8
+   Compiling hashbrown v0.12.3
+   Compiling zerocopy v0.8.48
+   Compiling indexmap v1.9.3
+   Compiling tinystr v0.8.3
+   Compiling fnv v1.0.7
+   Compiling litemap v0.8.2
+   Compiling writeable v0.6.3
+   Compiling icu_locale_core v2.2.0
+   Compiling num-traits v0.2.19
+   Compiling potential_utf v0.1.5
+   Compiling zerotrie v0.2.4
+   Compiling lazy_static v1.5.0
+   Compiling bitflags v1.3.2
+   Compiling memchr v2.8.0
+   Compiling utf8_iter v1.0.4
+   Compiling darling_core v0.21.3
+   Compiling icu_collections v2.2.0
+   Compiling icu_provider v2.2.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling scopeguard v1.2.0
+   Compiling ptr_meta v0.1.4
+   Compiling rand_chacha v0.3.1
+   Compiling icu_properties_data v2.2.0
+   Compiling darling_macro v0.21.3
+   Compiling icu_normalizer_data v2.2.0
+   Compiling num-integer v0.1.46
+   Compiling libloading v0.8.9
+   Compiling simdutf8 v0.1.5
+   Compiling bytecheck v0.6.12
+   Compiling clang-sys v1.8.1
+   Compiling darling v0.21.3
+   Compiling num-bigint v0.4.6
+   Compiling icu_normalizer v2.2.0
+   Compiling icu_properties v2.2.0
+   Compiling rand v0.8.5
+   Compiling target-lexicon v0.12.16
+   Compiling parking_lot_core v0.9.12
+   Compiling lock_api v0.4.14
+   Compiling cranelift-codegen-shared v0.91.1
+   Compiling byteorder v1.5.0
+   Compiling cranelift-codegen-meta v0.91.1
+   Compiling fxhash v0.2.1
+   Compiling thiserror v1.0.69
+   Compiling idna_adapter v1.2.1
+   Compiling ark-std v0.4.0
+   Compiling enumset_derive v0.14.0
+   Compiling crossbeam-utils v0.8.21
+   Compiling rend v0.4.2
+   Compiling bumpalo v3.20.2
+   Compiling seahash v4.1.0
+   Compiling percent-encoding v2.3.2
+   Compiling log v0.4.29
+   Compiling cranelift-entity v0.91.1
+   Compiling adler2 v2.0.1
+   Compiling gimli v0.32.3
+   Compiling rkyv v0.7.46
+   Compiling addr2line v0.25.1
+   Compiling miniz_oxide v0.8.9
+   Compiling form_urlencoded v1.2.2
+   Compiling enum-iterator v0.7.0
+   Compiling ark-serialize v0.4.2
+   Compiling cranelift-codegen v0.91.1
+   Compiling crossbeam-epoch v0.9.18
+   Compiling enumset v1.1.10
+   Compiling idna v1.1.0
+   Compiling ahash v0.8.12
+   Compiling object v0.37.3
+   Compiling ark-ff-macros v0.4.2
+   Compiling der v0.7.10
+   Compiling itertools v0.13.0
+   Compiling itertools v0.10.5
+   Compiling arrayvec v0.7.6
+   Compiling fallible-iterator v0.2.0
+   Compiling more-asserts v0.2.2
+   Compiling slice-group-by v0.3.1
+   Compiling hashbrown v0.14.5
+   Compiling rustc-demangle v0.1.27
+   Compiling dashmap v5.5.3
+   Compiling backtrace v0.3.76
+   Compiling regalloc2 v0.5.1
+   Compiling bindgen v0.72.1
+   Compiling gimli v0.26.2
+   Compiling wasmer-types v3.3.0
+   Compiling ark-ff v0.4.2
+   Compiling url v2.5.8
+   Compiling hashbrown v0.13.2
+   Compiling crossbeam-deque v0.8.6
+   Compiling memoffset v0.8.0
+   Compiling corosensei v0.1.4
+   Compiling cranelift-bforest v0.91.1
+   Compiling cranelift-egraph v0.91.1
+   Compiling region v3.0.2
+   Compiling pin-project-lite v0.2.17
+   Compiling leb128fmt v0.1.0
+   Compiling wasm-encoder v0.246.2
+   Compiling libz-sys v1.1.28
+   Compiling wasmer-vm v3.3.0
+   Compiling rayon-core v1.13.0
+   Compiling ark-poly v0.4.2
+   Compiling wasmparser v0.95.0
+   Compiling zstd-sys v2.0.16+zstd.1.5.7
+   Compiling spki v0.7.3
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling ff v0.13.1
+   Compiling lz4-sys v1.11.1+lz4-1.10.0
+   Compiling memmap2 v0.5.10
+   Compiling tracing-core v0.1.36
+   Compiling base16ct v0.2.0
+   Compiling leb128 v0.2.5
+   Compiling unicode-width v0.2.2
+   Compiling bindgen v0.65.1
+   Compiling wast v246.0.2
+   Compiling wasmer-compiler v3.3.0
+   Compiling sec1 v0.7.3
+   Compiling tracing v0.1.44
+   Compiling group v0.13.0
+   Compiling cranelift-frontend v0.91.1
+   Compiling pkcs8 v0.10.2
+   Compiling ark-ec v0.4.2
+   Compiling rayon v1.11.0
+   Compiling serde_core v1.0.228
+   Compiling hmac v0.12.1
+   Compiling crypto-bigint v0.5.5
+   Compiling elliptic-curve v0.13.8
+   Compiling rfc6979 v0.4.0
+   Compiling wasmer-compiler-cranelift v3.3.0
+   Compiling ark-bls12-381 v0.4.0
+   Compiling wat v1.246.2
+   Compiling librocksdb-sys v0.11.0+8.1.1
+   Compiling signature v2.2.0
+   Compiling blake3 v1.8.4
+   Compiling sys-info v0.9.1
+   Compiling bytes v1.11.1
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling wasmer v3.3.0
+   Compiling serde v1.0.228
+   Compiling ecdsa v0.16.9
+   Compiling equivalent v1.0.2
+   Compiling arrayref v0.3.9
+   Compiling foldhash v0.1.5
+   Compiling getrandom v0.3.4
+   Compiling constant_time_eq v0.4.2
+   Compiling allocator-api2 v0.2.21
+   Compiling rustix v1.1.4
+   Compiling cpufeatures v0.3.0
+   Compiling hashbrown v0.15.5
+   Compiling wasmer-middlewares v3.3.0
+   Compiling k256 v0.13.4
+   Compiling bincode v1.3.3
+   Compiling protobuf v2.28.0
+   Compiling zmij v1.0.21
+   Compiling ark-ed-on-bls12-381 v0.4.0
+   Compiling ark-ed-on-bls12-381-bandersnatch v0.4.0
+   Compiling parking_lot v0.12.5
+   Compiling num_cpus v1.17.0
+   Compiling linux-raw-sys v0.12.1
+   Compiling hex v0.4.3
+   Compiling bitflags v2.11.0
+   Compiling itoa v1.0.18
+   Compiling serde_json v1.0.149
+   Compiling klomang-core v0.1.0 (/workspaces/klomang-network/klomang-core)
+   Compiling prometheus v0.13.4
+   Compiling lru v0.12.5
+   Compiling tokio-macros v2.7.0
+   Compiling fastrand v2.4.1
+   Compiling tempfile v3.27.0
+   Compiling tokio v1.51.1
+   Compiling rocksdb v0.21.0
+   Compiling klomang-node v0.1.0 (/workspaces/klomang-network/klomang-node)
+error[E0583]: file not found for module `mempol`
+ --> src/lib.rs:2:1
+  |
+2 | pub mod mempol;
+  | ^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `mempol`, create file "src/mempol.rs" or "src/mempol/mod.rs"
+  = note: if there is a `mod mempol` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `network`
+ --> src/lib.rs:3:1
+  |
+3 | pub mod network;
+  | ^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `network`, create file "src/network.rs" or "src/network/mod.rs"
+  = note: if there is a `mod network` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `state`
+ --> src/lib.rs:4:1
+  |
+4 | pub mod state;
+  | ^^^^^^^^^^^^^^
+  |
+  = help: to create the module `state`, create file "src/state.rs" or "src/state/mod.rs"
+  = note: if there is a `mod state` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0583]: file not found for module `validation`
+ --> src/lib.rs:5:1
+  |
+5 | pub mod validation;
+  | ^^^^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `validation`, create file "src/validation.rs" or "src/validation/mod.rs"
+  = note: if there is a `mod validation` elsewhere in the crate already, import it with `use crate::...` instead
+
+error[E0432]: unresolved import `klomang_core::core::state::state_manager`
+  --> src/storage/backup.rs:14:32
+   |
+14 | use klomang_core::core::state::state_manager::StateManager;
+   |                                ^^^^^^^^^^^^^ could not find `state_manager` in `state`
+
+error[E0432]: unresolved imports `super::db::DEFAULT_BYTES_PER_SYNC`, `super::db::DEFAULT_MAX_BACKGROUND_JOBS`, `super::db::DEFAULT_MAX_OPEN_FILES`
+ --> src/storage/config.rs:7:5
+  |
+7 |     DEFAULT_BYTES_PER_SYNC, DEFAULT_COMPACTION_STYLE,
+  |     ^^^^^^^^^^^^^^^^^^^^^^ no `DEFAULT_BYTES_PER_SYNC` in `storage::db`
+8 |     DEFAULT_LEVEL_COMPACTION_DYNAMIC_LEVEL_BYTES, DEFAULT_MAX_BACKGROUND_JOBS,
+  |                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |                                                   |
+  |                                                   no `DEFAULT_MAX_BACKGROUND_JOBS` in `storage::db`
+  |                                                   help: a similar name exists in the module: `MAX_BACKGROUND_JOBS`
+9 |     DEFAULT_MAX_BYTES_FOR_LEVEL_BASE, DEFAULT_MAX_OPEN_FILES, DEFAULT_TARGET_FIL...
+  |                                       ^^^^^^^^^^^^^^^^^^^^^^ no `DEFAULT_MAX_OPEN_FILES` in `storage::db`
+
+warning: unused imports: `BlockValue`, `DagNodeValue`, `DagTipsValue`, `HeaderValue`, `TransactionValue`, `UtxoSpentValue`, `UtxoValue`, and `VerkleStateValue`
+  --> src/storage/concurrency.rs:13:30
+   |
+13 | ...::{BlockValue, DagNodeValue, DagTipsValue, HeaderValue, TransactionValue, UtxoSpentValue, UtxoValue, VerkleStateValue};
+   |       ^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::collections::HashSet`
+ --> src/storage/schema.rs:2:5
+  |
+2 | use std::collections::HashSet;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around function argument
+   --> src/storage/cache.rs:176:28
+    |
+176 |             return Ok(Some(((*value).clone())));
+    |                            ^                ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+176 -             return Ok(Some(((*value).clone())));
+176 +             return Ok(Some((*value).clone() ));
+    |
+
+warning: unnecessary parentheses around function argument
+   --> src/storage/cache.rs:223:28
+    |
+223 |             return Ok(Some(((*value).clone())));
+    |                            ^                ^
+    |
+help: remove these parentheses
+    |
+223 -             return Ok(Some(((*value).clone())));
+223 +             return Ok(Some((*value).clone() ));
+    |
+
+warning: unused doc comment
+ --> src/storage/metrics.rs:6:1
+  |
+6 | /// Global registry untuk metrics Prometheus.
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ rustdoc does not generate documentation for macro invocations
+  |
+  = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+  = note: `#[warn(unused_doc_comments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::storage::db::StorageDb`
+ --> src/storage/kv_store.rs:4:5
+  |
+4 | use crate::storage::db::StorageDb;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::storage::cf::ColumnFamilyName`
+ --> src/storage/kv_store.rs:5:5
+  |
+5 | use crate::storage::cf::ColumnFamilyName;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `parse_utxo_key`
+  --> src/storage/read_path.rs:13:5
+   |
+13 |     parse_utxo_key, make_utxo_key, UtxoValue, DagNodeValue, DagTip...
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `TxOutput`
+ --> src/storage/integration.rs:4:59
+  |
+4 | use klomang_core::core::state::transaction::{Transaction, TxOutput};
+  |                                                           ^^^^^^^^
+
+warning: unused import: `klomang_core::core::errors::CoreError`
+ --> src/storage/integration.rs:7:5
+  |
+7 | use klomang_core::core::errors::CoreError;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HashMap`
+ --> src/storage/backup.rs:1:24
+  |
+1 | use std::collections::{HashMap, HashSet};
+  |                        ^^^^^^^
+
+warning: unused import: `DB`
+ --> src/storage/backup.rs:6:15
+  |
+6 | use rocksdb::{DB, IteratorMode, Snapshot};
+  |               ^^
+
+error[E0119]: conflicting implementations of trait `std::convert::From<rocksdb::Error>` for type `storage::error::StorageError`
+   --> src/storage/kv_store.rs:254:1
+    |
+254 | impl From<RocksError> for StorageError {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ conflicting implementation for `storage::error::StorageError`
+    |
+   ::: src/storage/error.rs:28:1
+    |
+ 28 | impl From<rocksdb::Error> for StorageError {
+    | ------------------------------------------ first implementation here
+
+error[E0107]: missing generics for struct `StateManager`
+   --> src/storage/pruning.rs:80:62
+    |
+ 80 | ...ager: &mut StateManager) -> Result<usize, rocksdb::Error> {
+    |               ^^^^^^^^^^^^ expected 1 generic argument
+    |
+note: struct defined here, with 1 generic parameter: `S`
+   --> /workspaces/klomang-network/klomang-core/src/core/state_manager.rs:321:12
+    |
+321 | pub struct StateManager<S: Storage + Clone> {
+    |            ^^^^^^^^^^^^ -
+help: add missing generic argument
+    |
+ 80 |     pub fn rebuild_state_root(&mut self, state_manager: &mut StateManager<S>) -> Result<usize, rocksdb::Error> {
+    |                                                                          +++
+
+error[E0277]: `WriteBatchWithTransaction<false>` doesn't implement `std::fmt::Debug`
+ --> src/storage/batch.rs:6:5
+  |
+4 | #[derive(Debug)]
+  |          ----- in this derive macro expansion
+5 | pub struct WriteBatch {
+6 |     inner: RocksWriteBatch,
+  |     ^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+  |
+  = help: the trait `std::fmt::Debug` is not implemented for `WriteBatchWithTransaction<false>`
+
+error[E0277]: the trait bound `str: AsColumnFamilyRef` is not satisfied
+   --> src/storage/batch.rs:25:27
+    |
+ 25 |         self.inner.put_cf(cf, key, value);
+    |                    ------ ^^ the trait `AsColumnFamilyRef` is not implemented for `str`
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+help: the following other types implement trait `AsColumnFamilyRef`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/column_family.rs:125:1
+    |
+125 | impl AsColumnFamilyRef for ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `ColumnFamily`
+...
+131 | impl<'a> AsColumnFamilyRef for &'a ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a ColumnFamily`
+...
+142 | impl<'a> AsColumnFamilyRef for Arc<BoundColumnFamily<'a>> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Arc<BoundColumnFamily<'a>>`
+note: required by a bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:171:46
+    |
+171 | ... self, cf: &impl AsColumnFamilyRef, key: K, value: V)
+    |                     ^^^^^^^^^^^^^^^^^ required by this bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+   --> src/storage/batch.rs:25:27
+    |
+ 25 |         self.inner.put_cf(cf, key, value);
+    |                    ------ ^^ doesn't have a size known at compile-time
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+    = help: the trait `Sized` is not implemented for `str`
+note: required by an implicit `Sized` bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:171:41
+    |
+171 | ...mut self, cf: &impl AsColumnFamilyRef, key: K, value: V)
+    |                   ^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+
+error[E0277]: the trait bound `str: AsColumnFamilyRef` is not satisfied
+   --> src/storage/batch.rs:29:30
+    |
+ 29 |         self.inner.delete_cf(cf, key);
+    |                    --------- ^^ the trait `AsColumnFamilyRef` is not implemented for `str`
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+help: the following other types implement trait `AsColumnFamilyRef`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/column_family.rs:125:1
+    |
+125 | impl AsColumnFamilyRef for ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `ColumnFamily`
+...
+131 | impl<'a> AsColumnFamilyRef for &'a ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a ColumnFamily`
+...
+142 | impl<'a> AsColumnFamilyRef for Arc<BoundColumnFamily<'a>> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Arc<BoundColumnFamily<'a>>`
+note: required by a bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:243:59
+    |
+243 | ... self, cf: &impl AsColumnFamilyRef, key: K) {
+    |                     ^^^^^^^^^^^^^^^^^ required by this bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+   --> src/storage/batch.rs:29:30
+    |
+ 29 |         self.inner.delete_cf(cf, key);
+    |                    --------- ^^ doesn't have a size known at compile-time
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+    = help: the trait `Sized` is not implemented for `str`
+note: required by an implicit `Sized` bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:243:54
+    |
+243 | ...mut self, cf: &impl AsColumnFamilyRef, key: K) {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+
+error[E0277]: the trait bound `str: AsColumnFamilyRef` is not satisfied
+   --> src/storage/batch.rs:34:27
+    |
+ 34 |         self.inner.put_cf(cf.as_str(), key, value);
+    |                    ------ ^^^^^^^^^^^ the trait `AsColumnFamilyRef` is not implemented for `str`
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+help: the following other types implement trait `AsColumnFamilyRef`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/column_family.rs:125:1
+    |
+125 | impl AsColumnFamilyRef for ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `ColumnFamily`
+...
+131 | impl<'a> AsColumnFamilyRef for &'a ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a ColumnFamily`
+...
+142 | impl<'a> AsColumnFamilyRef for Arc<BoundColumnFamily<'a>> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Arc<BoundColumnFamily<'a>>`
+note: required by a bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:171:46
+    |
+171 | ... self, cf: &impl AsColumnFamilyRef, key: K, value: V)
+    |                     ^^^^^^^^^^^^^^^^^ required by this bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+   --> src/storage/batch.rs:34:27
+    |
+ 34 |         self.inner.put_cf(cf.as_str(), key, value);
+    |                    ------ ^^^^^^^^^^^ doesn't have a size known at compile-time
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+    = help: the trait `Sized` is not implemented for `str`
+note: required by an implicit `Sized` bound in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:171:41
+    |
+171 | ...mut self, cf: &impl AsColumnFamilyRef, key: K, value: V)
+    |                   ^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `WriteBatchWithTransaction::<TRANSACTION>::put_cf`
+help: consider removing this method call, as the receiver has type `ColumnFamilyName` and `ColumnFamilyName: Sized` trivially holds
+    |
+ 34 -         self.inner.put_cf(cf.as_str(), key, value);
+ 34 +         self.inner.put_cf(cf, key, value);
+    |
+
+error[E0277]: the trait bound `str: AsColumnFamilyRef` is not satisfied
+   --> src/storage/batch.rs:39:30
+    |
+ 39 |         self.inner.delete_cf(cf.as_str(), key);
+    |                    --------- ^^^^^^^^^^^ the trait `AsColumnFamilyRef` is not implemented for `str`
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+help: the following other types implement trait `AsColumnFamilyRef`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/column_family.rs:125:1
+    |
+125 | impl AsColumnFamilyRef for ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `ColumnFamily`
+...
+131 | impl<'a> AsColumnFamilyRef for &'a ColumnFamily {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `&'a ColumnFamily`
+...
+142 | impl<'a> AsColumnFamilyRef for Arc<BoundColumnFamily<'a>> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Arc<BoundColumnFamily<'a>>`
+note: required by a bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:243:59
+    |
+243 | ... self, cf: &impl AsColumnFamilyRef, key: K) {
+    |                     ^^^^^^^^^^^^^^^^^ required by this bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+
+error[E0277]: the size for values of type `str` cannot be known at compilation time
+   --> src/storage/batch.rs:39:30
+    |
+ 39 |         self.inner.delete_cf(cf.as_str(), key);
+    |                    --------- ^^^^^^^^^^^ doesn't have a size known at compile-time
+    |                    |
+    |                    required by a bound introduced by this call
+    |
+    = help: the trait `Sized` is not implemented for `str`
+note: required by an implicit `Sized` bound in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+   --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/write_batch.rs:243:54
+    |
+243 | ...mut self, cf: &impl AsColumnFamilyRef, key: K) {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^ required by the implicit `Sized` requirement on this type parameter in `WriteBatchWithTransaction::<TRANSACTION>::delete_cf`
+help: consider removing this method call, as the receiver has type `ColumnFamilyName` and `ColumnFamilyName: Sized` trivially holds
+    |
+ 39 -         self.inner.delete_cf(cf.as_str(), key);
+ 39 +         self.inner.delete_cf(cf, key);
+    |
+
+error[E0599]: no method named `is_empty` found for struct `std::sync::mpsc::Receiver<T>` in the current scope
+   --> src/storage/concurrency.rs:157:25
+    |
+157 |             if receiver.is_empty() {
+    |                         ^^^^^^^^ method not found in `std::sync::mpsc::Receiver<StorageWriteMessage>`
+
+error[E0308]: arguments to this method are incorrect
+    --> src/storage/cache.rs:473:45
+     |
+ 473 |         let iter = self.db.as_ref().inner().iterator_cf_opt(
+     |                                             ^^^^^^^^^^^^^^^
+ 474 |             &cf_handle,
+ 475 |             IteratorMode::From(start_key, Direction::Forward),
+     |             ------------------------------------------------- expected `ReadOptions`, found `IteratorMode<'_>`
+ 476 |             read_opts,
+     |             --------- expected `IteratorMode<'_>`, found `ReadOptions`
+     |
+note: method defined here
+    --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/db.rs:1356:12
+     |
+1356 |     pub fn iterator_cf_opt<'a: 'b, 'b>(
+     |            ^^^^^^^^^^^^^^^
+help: swap these arguments
+     |
+ 473 ~         let iter = self.db.as_ref().inner().iterator_cf_opt(
+ 474 +             &cf_handle,
+ 475 +             read_opts,
+ 476 +             IteratorMode::From(start_key, Direction::Forward),
+ 477 ~         );
+     |
+
+error[E0308]: mismatched types
+   --> src/storage/cache.rs:487:40
+    |
+487 |             self.utxo_hot_cache.insert(key.clone(), utxo.clone());
+    |                                 ------ ^^^^^^^^^^^ expected `Vec<u8>`, found `Box<[u8]>`
+    |                                 |
+    |                                 arguments to this method are incorrect
+    |
+    = note: expected struct `Vec<u8>`
+               found struct `Box<[u8]>`
+note: method defined here
+   --> src/storage/cache.rs:42:12
+    |
+ 42 |     pub fn insert(&self, key: Vec<u8>, value: UtxoValue) {
+    |            ^^^^^^        ------------
+help: try using a conversion method
+    |
+487 -             self.utxo_hot_cache.insert(key.clone(), utxo.clone());
+487 +             self.utxo_hot_cache.insert(key.to_vec(), utxo.clone());
+    |
+
+error[E0308]: mismatched types
+    --> src/storage/cache.rs:499:57
+     |
+ 499 | ..._ref().inner().iterator_cf(cf_handle, IteratorMode::Start);
+     |                   ----------- ^^^^^^^^^ expected `&_`, found `Arc<BoundColumnFamily<'_>>`
+     |                   |
+     |                   arguments to this method are incorrect
+     |
+     = note: expected reference `&_`
+                   found struct `Arc<BoundColumnFamily<'_>>`
+note: method defined here
+    --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/db.rs:1390:12
+     |
+1390 |     pub fn iterator_cf<'a: 'b, 'b>(
+     |            ^^^^^^^^^^^
+help: consider borrowing here
+     |
+ 499 |         let iter = self.db.as_ref().inner().iterator_cf(&cf_handle, IteratorMode::Start);
+     |                                                         +
+
+error[E0308]: mismatched types
+    --> src/storage/cache.rs:520:57
+     |
+ 520 | ..._ref().inner().iterator_cf(cf_handle, IteratorMode::Start);
+     |                   ----------- ^^^^^^^^^ expected `&_`, found `Arc<BoundColumnFamily<'_>>`
+     |                   |
+     |                   arguments to this method are incorrect
+     |
+     = note: expected reference `&_`
+                   found struct `Arc<BoundColumnFamily<'_>>`
+note: method defined here
+    --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/db.rs:1390:12
+     |
+1390 |     pub fn iterator_cf<'a: 'b, 'b>(
+     |            ^^^^^^^^^^^
+help: consider borrowing here
+     |
+ 520 |         let iter = self.db.as_ref().inner().iterator_cf(&cf_handle, IteratorMode::Start);
+     |                                                         +
+
+error[E0308]: mismatched types
+    --> src/storage/pruning.rs:49:13
+     |
+  48 | ...et iter = db.inner().iterator_cf(
+     |                         ----------- arguments to this method are incorrect
+  49 | ...   db.inner().cf_handle(crate::storage::cf::ColumnFamilyName::Headers.as_str()).unwrap(),
+     |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `&_`, found `Arc<BoundColumnFamily<'_>>`
+     |
+     = note: expected reference `&_`
+                   found struct `Arc<BoundColumnFamily<'_>>`
+note: method defined here
+    --> /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/db.rs:1390:12
+     |
+1390 |     pub fn iterator_cf<'a: 'b, 'b>(
+     |            ^^^^^^^^^^^
+help: consider borrowing here
+     |
+  49 |             &db.inner().cf_handle(crate::storage::cf::ColumnFamilyName::Headers.as_str()).unwrap(),
+     |             +
+
+error[E0277]: `?` couldn't convert the error to `rocksdb::Error`
+  --> src/storage/pruning.rs:55:67
+   |
+55 |             let header: HeaderValue = bincode::deserialize(&value)?;
+   |                                       ----------------------------^ unsatisfied trait bound
+   |                                       |
+   |                                       this can't be annotated with `?` because it has type `Result<_, Box<bincode::ErrorKind>>`
+   |
+   = help: the trait `std::convert::From<Box<bincode::ErrorKind>>` is not implemented for `rocksdb::Error`
+   = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+
+error[E0061]: this method takes 1 argument but 2 arguments were supplied
+  --> src/storage/pruning.rs:59:23
+   |
+59 | ...atch.delete(crate::storage::cf::ColumnFamilyName::Blocks, &key);
+   |         ^^^^^^ -------------------------------------------- unexpected argument #1 of type `ColumnFamilyName`
+   |
+note: method defined here
+  --> src/storage/batch.rs:20:12
+   |
+20 |     pub fn delete(&mut self, key: &[u8]) {
+   |            ^^^^^^
+help: remove the extra argument
+   |
+59 -                 batch.delete(crate::storage::cf::ColumnFamilyName::Blocks, &key);
+59 +                 batch.delete(&key);
+   |
+
+error[E0624]: associated function `new` is private
+   --> src/storage/pruning.rs:83:42
+    |
+ 83 | ...ocksdb::Error::new(format!("State rebuild error: {:?}", e)))
+    |                   ^^^ private associated function
+    |
+   ::: /home/codespace/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rocksdb-0.21.0/src/lib.rs:170:5
+    |
+170 |     fn new(message: String) -> Error {
+    |     -------------------------------- private associated function defined here
+
+error[E0599]: no method named `as_ref` found for struct `klomang_core::Hash` in the current scope
+  --> src/storage/integration.rs:31:41
+   |
+31 |         let tx_hash_bytes = &outpoint.0.as_ref();
+   |                                         ^^^^^^ method not found in `klomang_core::Hash`
+
+error[E0308]: mismatched types
+  --> src/storage/integration.rs:36:9
+   |
+28 |       pub fn get_utxo(&self, outpoint: &CoreOutPoint) -> StorageResult<Option<UtxoValue>> {
+   |                                                          -------------------------------- expected `Result<Option<UtxoValue>, ...>` because of return type
+...
+36 | /         self.storage.cache_layer.db()
+37 | |             .get(ColumnFamilyName::Utxo, &key)
+38 | |             .map_err(|e| StorageError::DbError(e.to_string()))?
+39 | |             .map(|raw| UtxoValue::from_bytes(&raw))
+40 | |             .transpose()
+   | |________________________^ expected `Result<Option<UtxoValue>, StorageError>`, found `Result<Option<UtxoValue>, Box<...>>`
+   |
+   = note: expected enum `Result<_, storage::error::StorageError>`
+              found enum `Result<_, Box<bincode::ErrorKind>>`
+   = note: the full name for the type has been written to '/workspaces/klomang-network/klomang-node/target/debug/deps/klomang_node-234738bc241cb01d.long-type-8554512795121168623.txt'
+   = note: consider using `--verbose` to print the full type name to the console
+help: use `?` to coerce and return an appropriate `Err`, and wrap the resulting value in `Ok` so the expression remains of type `Result`
+   |
+36 ~         Ok(self.storage.cache_layer.db()
+37 |             .get(ColumnFamilyName::Utxo, &key)
+38 |             .map_err(|e| StorageError::DbError(e.to_string()))?
+39 |             .map(|raw| UtxoValue::from_bytes(&raw))
+40 ~             .transpose()?)
+   |
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+  --> src/storage/integration.rs:51:54
+   |
+51 |             let utxo_key = make_utxo_key(&outpoint.0.0, outpoint.1);
+   |                                                      ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+  --> src/storage/integration.rs:62:49
+   |
+62 | ...   let utxo_key = make_utxo_key(&tx.id.0, output_index as u32);
+   |                                           ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+  --> src/storage/integration.rs:65:36
+   |
+65 |                 output.pubkey_hash.0.to_vec(),
+   |                                    ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+  --> src/storage/integration.rs:66:24
+   |
+66 |                 output.script.clone(),
+   |                        ^^^^^^ unknown field
+   |
+   = note: available fields are: `value`, `pubkey_hash`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `hex`
+  --> src/storage/integration.rs:99:21
+   |
+99 |                     hex::encode(&tx.id.0), e)
+   |                     ^^^ use of unresolved module or unlinked crate `hex`
+   |
+   = help: if you wanted to use a crate named `hex`, use `cargo add hex` to add it to your `Cargo.toml`
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+  --> src/storage/integration.rs:99:40
+   |
+99 |                     hex::encode(&tx.id.0), e)
+   |                                        ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:117:28
+    |
+117 |             tx_hash: tx.id.0.to_vec(),
+    |                            ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:119:49
+    |
+119 |                 previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                 ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/integration.rs:124:32
+    |
+124 |                 script: output.script.clone(),
+    |                                ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/integration.rs:122:53
+    |
+122 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0599]: no variant or associated item named `Mempool` found for enum `ColumnFamilyName` in the current scope
+   --> src/storage/integration.rs:131:35
+    |
+131 |             cf: ColumnFamilyName::Mempool,
+    |                                   ^^^^^^^ variant or associated item not found in `ColumnFamilyName`
+    |
+   ::: src/storage/cf.rs:4:1
+    |
+  4 | pub enum ColumnFamilyName {
+    | ------------------------- variant or associated item `Mempool` not found for this enum
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:132:24
+    |
+132 |             key: tx.id.0.to_vec(),
+    |                        ^ private field
+
+error[E0428]: the name `tests` is defined multiple times
+   --> src/storage/cache.rs:564:1
+    |
+540 | mod tests {
+    | --------- previous definition of the module `tests` here
+...
+564 | mod tests {
+    | ^^^^^^^^^ `tests` redefined here
+    |
+    = note: `tests` must be defined only once in the type namespace of this module
+
+error[E0599]: no variant or associated item named `Mempool` found for enum `ColumnFamilyName` in the current scope
+   --> src/storage/integration.rs:140:35
+    |
+140 |             cf: ColumnFamilyName::Mempool,
+    |                                   ^^^^^^^ variant or associated item not found in `ColumnFamilyName`
+    |
+   ::: src/storage/cf.rs:4:1
+    |
+  4 | pub enum ColumnFamilyName {
+    | ------------------------- variant or associated item `Mempool` not found for this enum
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:141:26
+    |
+141 |             key: tx_hash.0.to_vec(),
+    |                          ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:178:41
+    |
+178 |             block_hash: block.header.id.0.to_vec(),
+    |                                         ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:179:66
+    |
+179 | ...rents.iter().map(|p| p.0.to_vec()).collect(),
+    |                           ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:183:51
+    |
+183 |             verkle_root: block.header.verkle_root.0.to_vec(),
+    |                                                   ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:188:35
+    |
+188 |             hash: block.header.id.0.to_vec(),
+    |                                   ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:200:38
+    |
+200 |                 key: block.header.id.0.to_vec(),
+    |                                      ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:205:38
+    |
+205 |                 key: block.header.id.0.to_vec(),
+    |                                      ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:213:32
+    |
+213 |                 tx_hash: tx.id.0.to_vec(),
+    |                                ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:215:53
+    |
+215 |                     previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                     ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/integration.rs:220:36
+    |
+220 |                     script: output.script.clone(),
+    |                                    ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/integration.rs:218:57
+    |
+218 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:227:28
+    |
+227 |                 key: tx.id.0.to_vec(),
+    |                            ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:246:28
+    |
+246 |             tx_hash: tx.id.0.to_vec(),
+    |                            ^ private field
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:248:49
+    |
+248 |                 previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                 ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/integration.rs:253:32
+    |
+253 |                 script: output.script.clone(),
+    |                                ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/integration.rs:251:53
+    |
+251 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/integration.rs:261:24
+    |
+261 |             key: tx.id.0.to_vec(),
+    |                        ^ private field
+
+warning: unused variable: `metrics`
+   --> src/storage/db.rs:169:13
+    |
+169 |         let metrics = Arc::new(StorageMetrics::new(Box::new(NoOpM...
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metrics`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0061, E0063, E0107, E0119, E0277, E0308, E0432, E0433, E0583...
+For more information about an error, try `rustc --explain E0061`.
+warning: `klomang-node` (lib) generated 13 warnings
+error: could not compile `klomang-node` (lib) due to 58 previous errors; 13 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+error[E0432]: unresolved import `klomang_core::core::state::state_manager`
+   --> src/storage/backup.rs:324:36
+    |
+324 |     use klomang_core::core::state::state_manager::StateManager;
+    |                                    ^^^^^^^^^^^^^ could not find `state_manager` in `state`
+
+warning: unused import: `TransactionValue`
+   --> src/storage/backup.rs:329:46
+    |
+329 |     use crate::storage::schema::{BlockValue, TransactionValue};
+    |                                              ^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+ --> src/storage/tests.rs:3:9
+  |
+3 |     use super::*;
+  |         ^^^^^^^^
+
+warning: unused import: `crate::storage::error::StorageResult`
+  --> src/storage/tests.rs:18:9
+   |
+18 |     use crate::storage::error::StorageResult;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `HeaderValue`
+  --> src/storage/tests.rs:19:46
+   |
+19 |     use crate::storage::schema::{BlockValue, HeaderValue, Transact...
+   |                                              ^^^^^^^^^^^
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+   --> src/storage/cache.rs:550:18
+    |
+550 | ...  let db = StorageDb::open_with_config(&config).expect("open d...
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^--------- argument #2 of type `Arc<StorageMetrics>` is missing
+    |
+note: associated function defined here
+   --> src/storage/db.rs:173:12
+    |
+173 | ...fn open_with_config(config: &StorageConfig, metrics: Arc<StorageMetrics>) -...
+    |       ^^^^^^^^^^^^^^^^                         ----------------------------
+help: provide the argument
+    |
+550 |         let db = StorageDb::open_with_config(&config, /* Arc<StorageMetrics> */).expect("open db");
+    |                                                     +++++++++++++++++++++++++++
+
+error[E0308]: mismatched types
+   --> src/storage/cache.rs:559:28
+    |
+559 |         assert_eq!(loaded, Some(utxo));
+    |                            ^^^^^^^^^^ expected `ArchivedOption<_>`, found `Option<UtxoValue>`
+    |
+    = note: expected enum `rkyv::option::ArchivedOption<_>`
+               found enum `std::option::Option<schema::UtxoValue>`
+help: try wrapping the expression in `rkyv::option::ArchivedOption::Some`
+    |
+559 |         assert_eq!(loaded, rkyv::option::ArchivedOption::Some(Some(utxo)));
+    |                            +++++++++++++++++++++++++++++++++++          +
+
+error[E0599]: no function or associated item named `open_without_cache` found for struct `StorageDb` in the current scope
+   --> src/storage/cache.rs:572:29
+    |
+572 | ... db = StorageDb::open_without_cache(temp_dir.path()).expect("o...
+    |                     ^^^^^^^^^^^^^^^^^^ function or associated item not found in `StorageDb`
+    |
+   ::: src/storage/db.rs:150:1
+    |
+150 | pub struct StorageDb {
+    | -------------------- function or associated item `open_without_cache` not found for this struct
+    |
+note: if you're trying to build a new `StorageDb` consider using one of the following associated functions:
+      StorageDb::open
+      StorageDb::new
+      StorageDb::open_with_config
+   --> src/storage/db.rs:162:5
+    |
+162 |     pub fn open<P: AsRef<Path>, Q: AsRef<Path>>(path: P, wal_dir: Q) -> Result<Self, Error> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+168 |     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+173 |     pub fn open_with_config(config: &StorageConfig, metrics: Arc<StorageMetrics>) -> Result<Self, Error> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src/storage/cache.rs:581:28
+    |
+581 |         assert_eq!(loaded, Some(utxo));
+    |                            ^^^^^^^^^^ expected `ArchivedOption<_>`, found `Option<UtxoValue>`
+    |
+    = note: expected enum `rkyv::option::ArchivedOption<_>`
+               found enum `std::option::Option<schema::UtxoValue>`
+help: try wrapping the expression in `rkyv::option::ArchivedOption::Some`
+    |
+581 |         assert_eq!(loaded, rkyv::option::ArchivedOption::Some(Some(utxo)));
+    |                            +++++++++++++++++++++++++++++++++++          +
+
+error[E0308]: mismatched types
+  --> src/storage/integration.rs:36:9
+   |
+28 |       pub fn get_utxo(&self, outpoint: &CoreOutPoint) -> StorageResult<Option<UtxoValue>> {
+   |                                                          -------------------------------- expected `Result<Option<UtxoValue>, ...>` because of return type
+...
+36 | /         self.storage.cache_layer.db()
+37 | |             .get(ColumnFamilyName::Utxo, &key)
+38 | |             .map_err(|e| StorageError::DbError(e.to_string()))?
+39 | |             .map(|raw| UtxoValue::from_bytes(&raw))
+40 | |             .transpose()
+   | |________________________^ expected `Result<Option<UtxoValue>, StorageError>`, found `Result<Option<UtxoValue>, Box<...>>`
+   |
+   = note: expected enum `Result<_, storage::error::StorageError>`
+              found enum `Result<_, Box<bincode::ErrorKind>>`
+   = note: the full name for the type has been written to '/workspaces/klomang-network/klomang-node/target/debug/deps/klomang_node-aa11e210fcbeb033.long-type-11779873561047081165.txt'
+   = note: consider using `--verbose` to print the full type name to the console
+help: use `?` to coerce and return an appropriate `Err`, and wrap the resulting value in `Ok` so the expression remains of type `Result`
+   |
+36 ~         Ok(self.storage.cache_layer.db()
+37 |             .get(ColumnFamilyName::Utxo, &key)
+38 |             .map_err(|e| StorageError::DbError(e.to_string()))?
+39 |             .map(|raw| UtxoValue::from_bytes(&raw))
+40 ~             .transpose()?)
+   |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:295:23
+    |
+295 |         let tx_hash = Hash([1u8; 32]);
+    |                       ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+295 -         let tx_hash = Hash([1u8; 32]);
+295 +         let tx_hash = Hash::new(_);
+    |
+295 -         let tx_hash = Hash([1u8; 32]);
+295 +         let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0423]: expected function, tuple struct or tuple variant, found type alias `CoreOutPoint`
+   --> src/storage/integration.rs:297:24
+    |
+297 |         let outpoint = CoreOutPoint(tx_hash.clone(), output_index);
+    |                        ^^^^^^^^^^^^
+    |
+help: you might have meant to use `:` for type annotation
+    |
+297 -         let outpoint = CoreOutPoint(tx_hash.clone(), output_index);
+297 +         let outpoint: CoreOutPoint(tx_hash.clone(), output_index);
+    |
+
+error[E0609]: no field `pubkey_hash` on type `schema::UtxoValue`
+   --> src/storage/integration.rs:320:30
+    |
+320 |         assert_eq!(retrieved.pubkey_hash, vec![2u8; 20]);
+    |                              ^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `amount`, `script`, `owner`, `block_height`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:329:29
+    |
+329 |         let input_tx_hash = Hash([1u8; 32]);
+    |                             ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+329 -         let input_tx_hash = Hash([1u8; 32]);
+329 +         let input_tx_hash = Hash::new(_);
+    |
+329 -         let input_tx_hash = Hash([1u8; 32]);
+329 +         let input_tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0560]: struct `TxInput` has no field named `script_sig`
+   --> src/storage/integration.rs:333:13
+    |
+333 |             script_sig: vec![],
+    |             ^^^^^^^^^^ `TxInput` does not have this field
+    |
+    = note: available fields are: `signature`, `pubkey`, `sighash_type`
+
+error[E0308]: mismatched types
+   --> src/storage/integration.rs:338:26
+    |
+338 |             pubkey_hash: vec![3u8; 20],
+    |                          ^^^^^^^^^^^^^ expected `Hash`, found `Vec<u8>`
+    |
+    = note: expected struct `klomang_core::Hash`
+               found struct `Vec<u8>`
+    = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `TxOutput` has no field named `script`
+   --> src/storage/integration.rs:339:13
+    |
+339 |             script: vec![0x76, 0xa9, 0x14],
+    |             ^^^^^^ `TxOutput` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:343:17
+    |
+343 |             id: Hash([2u8; 32]),
+    |                 ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+343 -             id: Hash([2u8; 32]),
+343 +             id: Hash::new(_),
+    |
+343 -             id: Hash([2u8; 32]),
+343 +             id: Hash::from_bytes(_),
+    |
+
+error[E0063]: missing fields `chain_id`, `contract_address`, `execution_payload` and 3 other fields in initializer of `klomang_core::Transaction`
+   --> src/storage/integration.rs:342:18
+    |
+342 |         let tx = Transaction {
+    |                  ^^^^^^^^^^^ missing `chain_id`, `contract_address`, `execution_payload` and 3 other fields
+
+error[E0599]: no method named `is_empty` found for struct `WriteBatch` in the current scope
+   --> src/storage/integration.rs:354:24
+    |
+354 |         assert!(!batch.is_empty());
+    |                        ^^^^^^^^ method not found in `WriteBatch`
+    |
+   ::: src/storage/batch.rs:5:1
+    |
+  5 | pub struct WriteBatch {
+    | --------------------- method `is_empty` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `is_empty`, perhaps you need to implement one of them:
+            candidate #1: `ExactSizeIterator`
+            candidate #2: `RangeBounds`
+            candidate #3: `ark_std::iterable::Iterable`
+            candidate #4: `bitflags::traits::Flags`
+            candidate #5: `enumset::repr::EnumSetTypeRepr`
+            candidate #6: `gimli::read::reader::Reader`
+            candidate #7: `gimli::read::reader::Reader`
+            candidate #8: `rand::distributions::uniform::SampleRange`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:364:17
+    |
+364 |             id: Hash([1u8; 32]),
+    |                 ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+364 -             id: Hash([1u8; 32]),
+364 +             id: Hash::new(_),
+    |
+364 -             id: Hash([1u8; 32]),
+364 +             id: Hash::from_bytes(_),
+    |
+
+error[E0308]: mismatched types
+   --> src/storage/integration.rs:368:30
+    |
+368 |                 pubkey_hash: vec![2u8; 20],
+    |                              ^^^^^^^^^^^^^ expected `Hash`, found `Vec<u8>`
+    |
+    = note: expected struct `klomang_core::Hash`
+               found struct `Vec<u8>`
+    = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `TxOutput` has no field named `script`
+   --> src/storage/integration.rs:369:17
+    |
+369 |                 script: vec![0x76, 0xa9, 0x14],
+    |                 ^^^^^^ `TxOutput` does not have this field
+    |
+    = note: all struct fields are already assigned
+
+error[E0063]: missing fields `chain_id`, `contract_address`, `execution_payload` and 3 other fields in initializer of `klomang_core::Transaction`
+   --> src/storage/integration.rs:363:18
+    |
+363 |         let tx = Transaction {
+    |                  ^^^^^^^^^^^ missing `chain_id`, `contract_address`, `execution_payload` and 3 other fields
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:393:21
+    |
+393 |                 id: Hash([1u8; 32]),
+    |                     ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+393 -                 id: Hash([1u8; 32]),
+393 +                 id: Hash::new(_),
+    |
+393 -                 id: Hash([1u8; 32]),
+393 +                 id: Hash::from_bytes(_),
+    |
+
+error[E0308]: mismatched types
+   --> src/storage/integration.rs:394:26
+    |
+394 |                 parents: vec![],
+    |                          ^^^^^^ expected `HashSet<Hash>`, found `Vec<_>`
+    |
+    = note: expected struct `HashSet<klomang_core::Hash>`
+               found struct `Vec<_>`
+    = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/integration.rs:398:30
+    |
+398 |                 verkle_root: Hash([0u8; 32]),
+    |                              ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+398 -                 verkle_root: Hash([0u8; 32]),
+398 +                 verkle_root: Hash::new(_),
+    |
+398 -                 verkle_root: Hash([0u8; 32]),
+398 +                 verkle_root: Hash::from_bytes(_),
+    |
+
+error[E0063]: missing fields `signature` and `verkle_proofs` in initializer of `BlockHeader`
+   --> src/storage/integration.rs:392:21
+    |
+392 |             header: klomang_core::core::dag::BlockHeader {
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `signature` and `verkle_proofs`
+
+error[E0063]: missing fields `blue_score`, `blue_set`, `children` and 2 other fields in initializer of `BlockNode`
+   --> src/storage/integration.rs:391:29
+    |
+391 |         let invalid_block = klomang_core::core::dag::BlockNode {
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `blue_score`, `blue_set`, `children` and 2 other fields
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/backup.rs:342:19
+    |
+342 |             hash: Hash([1u8; 32]).0.to_vec(),
+    |                   ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+342 -             hash: Hash([1u8; 32]).0.to_vec(),
+342 +             hash: Hash::new(_).0.to_vec(),
+    |
+342 -             hash: Hash([1u8; 32]).0.to_vec(),
+342 +             hash: Hash::from_bytes(_).0.to_vec(),
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/backup.rs:349:18
+    |
+349 |             key: Hash([1u8; 32]).0.to_vec(),
+    |                  ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+349 -             key: Hash([1u8; 32]).0.to_vec(),
+349 +             key: Hash::new(_).0.to_vec(),
+    |
+349 -             key: Hash([1u8; 32]).0.to_vec(),
+349 +             key: Hash::from_bytes(_).0.to_vec(),
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/backup.rs:406:23
+    |
+406 |                 hash: Hash([i as u8; 32]).0.to_vec(),
+    |                       ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+406 -                 hash: Hash([i as u8; 32]).0.to_vec(),
+406 +                 hash: Hash::new(_).0.to_vec(),
+    |
+406 -                 hash: Hash([i as u8; 32]).0.to_vec(),
+406 +                 hash: Hash::from_bytes(_).0.to_vec(),
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/backup.rs:413:22
+    |
+413 |                 key: Hash([i as u8; 32]).0.to_vec(),
+    |                      ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+413 -                 key: Hash([i as u8; 32]).0.to_vec(),
+413 +                 key: Hash::new(_).0.to_vec(),
+    |
+413 -                 key: Hash([i as u8; 32]).0.to_vec(),
+413 +                 key: Hash::from_bytes(_).0.to_vec(),
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> src/storage/tests.rs:38:26
+   |
+38 |                 prev_tx: Hash([0u8; 32]),
+   |                          ^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+   |
+ 6 | pub struct Hash([u8; 32]);
+   |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+38 -                 prev_tx: Hash([0u8; 32]),
+38 +                 prev_tx: Hash::new(_),
+   |
+38 -                 prev_tx: Hash([0u8; 32]),
+38 +                 prev_tx: Hash::from_bytes(_),
+   |
+
+error[E0560]: struct `TxInput` has no field named `script_sig`
+  --> src/storage/tests.rs:40:17
+   |
+40 |                 script_sig: vec![1, 2, 3],
+   |                 ^^^^^^^^^^ `TxInput` does not have this field
+   |
+   = note: available fields are: `signature`, `pubkey`, `sighash_type`
+
+error[E0308]: mismatched types
+  --> src/storage/tests.rs:44:30
+   |
+44 |                 pubkey_hash: vec![4, 5, 6],
+   |                              ^^^^^^^^^^^^^ expected `Hash`, found `Vec<{integer}>`
+   |
+   = note: expected struct `klomang_core::Hash`
+              found struct `Vec<{integer}>`
+   = note: this error originates in the macro `vec` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0560]: struct `TxOutput` has no field named `script`
+  --> src/storage/tests.rs:45:17
+   |
+45 |                 script: vec![7, 8, 9],
+   |                 ^^^^^^ `TxOutput` does not have this field
+   |
+   = note: all struct fields are already assigned
+
+error[E0063]: missing fields `chain_id`, `contract_address`, `execution_payload` and 3 other fields in initializer of `klomang_core::Transaction`
+  --> src/storage/tests.rs:35:9
+   |
+35 |         Transaction {
+   |         ^^^^^^^^^^^ missing `chain_id`, `contract_address`, `execution_payload` and 3 other fields
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> src/storage/tests.rs:54:31
+   |
+54 |                 parents: vec![Hash([10u8; 32])],
+   |                               ^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+   |
+ 6 | pub struct Hash([u8; 32]);
+   |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+54 -                 parents: vec![Hash([10u8; 32])],
+54 +                 parents: vec![Hash::new(_)],
+   |
+54 -                 parents: vec![Hash([10u8; 32])],
+54 +                 parents: vec![Hash::from_bytes(_)],
+   |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> src/storage/tests.rs:58:30
+   |
+58 |                 verkle_root: Hash([11u8; 32]),
+   |                              ^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+   |
+ 6 | pub struct Hash([u8; 32]);
+   |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+58 -                 verkle_root: Hash([11u8; 32]),
+58 +                 verkle_root: Hash::new(_),
+   |
+58 -                 verkle_root: Hash([11u8; 32]),
+58 +                 verkle_root: Hash::from_bytes(_),
+   |
+
+error[E0063]: missing fields `signature` and `verkle_proofs` in initializer of `BlockHeader`
+  --> src/storage/tests.rs:52:21
+   |
+52 |             header: BlockHeader {
+   |                     ^^^^^^^^^^^ missing `signature` and `verkle_proofs`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> src/storage/tests.rs:60:56
+   |
+60 | ...   transactions: vec![create_test_transaction(Hash([12u8; 32]))],
+   |                                                  ^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+   |
+ 6 | pub struct Hash([u8; 32]);
+   |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+60 -             transactions: vec![create_test_transaction(Hash([12u8; 32]))],
+60 +             transactions: vec![create_test_transaction(Hash::new(_))],
+   |
+60 -             transactions: vec![create_test_transaction(Hash([12u8; 32]))],
+60 +             transactions: vec![create_test_transaction(Hash::from_bytes(_))],
+   |
+
+error[E0063]: missing fields `blue_score`, `blue_set`, `children` and 2 other fields in initializer of `BlockNode`
+  --> src/storage/tests.rs:51:9
+   |
+51 |         BlockNode {
+   |         ^^^^^^^^^ missing `blue_score`, `blue_set`, `children` and 2 other fields
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+  --> src/storage/tests.rs:69:26
+   |
+69 |         let block_hash = Hash([1u8; 32]);
+   |                          ^^^^
+   |
+note: constructor is not visible here due to private fields
+  --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+   |
+ 6 | pub struct Hash([u8; 32]);
+   |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+   |
+69 -         let block_hash = Hash([1u8; 32]);
+69 +         let block_hash = Hash::new(_);
+   |
+69 -         let block_hash = Hash([1u8; 32]);
+69 +         let block_hash = Hash::from_bytes(_);
+   |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:104:23
+    |
+104 |         let tx_hash = Hash([2u8; 32]);
+    |                       ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+104 -         let tx_hash = Hash([2u8; 32]);
+104 +         let tx_hash = Hash::new(_);
+    |
+104 -         let tx_hash = Hash([2u8; 32]);
+104 +         let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/tests.rs:111:49
+    |
+111 |                 previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                 ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/tests.rs:116:32
+    |
+116 |                 script: output.script.clone(),
+    |                                ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/tests.rs:114:53
+    |
+114 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:147:26
+    |
+147 |         let block_hash = Hash([3u8; 32]);
+    |                          ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+147 -         let block_hash = Hash([3u8; 32]);
+147 +         let block_hash = Hash::new(_);
+    |
+147 -         let block_hash = Hash([3u8; 32]);
+147 +         let block_hash = Hash::from_bytes(_);
+    |
+
+error[E0599]: no method named `write` found for struct `StorageDb` in the current scope
+   --> src/storage/tests.rs:168:12
+    |
+168 |         db.write(batch).unwrap();
+    |            ^^^^^ method not found in `StorageDb`
+    |
+   ::: src/storage/db.rs:150:1
+    |
+150 | pub struct StorageDb {
+    | -------------------- method `write` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `write`, perhaps you need to implement one of them:
+            candidate #1: `Hasher`
+            candidate #2: `ark_std::io::Write`
+            candidate #3: `der::writer::Writer`
+            candidate #4: `gimli::write::writer::Writer`
+            candidate #5: `itoa::private::Sealed`
+            candidate #6: `rkyv::ser::Serializer`
+            candidate #7: `std::io::Write`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:185:27
+    |
+185 |             let tx_hash = Hash([(i % 256) as u8; 32]);
+    |                           ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+185 -             let tx_hash = Hash([(i % 256) as u8; 32]);
+185 +             let tx_hash = Hash::new(_);
+    |
+185 -             let tx_hash = Hash([(i % 256) as u8; 32]);
+185 +             let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/tests.rs:191:53
+    |
+191 |                     previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                     ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/tests.rs:196:36
+    |
+196 |                     script: output.script.clone(),
+    |                                    ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/tests.rs:194:57
+    |
+194 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:220:25
+    |
+220 |         let test_hash = Hash([0u8; 32]);
+    |                         ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+220 -         let test_hash = Hash([0u8; 32]);
+220 +         let test_hash = Hash::new(_);
+    |
+220 -         let test_hash = Hash([0u8; 32]);
+220 +         let test_hash = Hash::from_bytes(_);
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:240:35
+    |
+240 | ...   let tx_hash = Hash([((thread_id * tx_per_thread + i) % 256)...
+    |                     ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+240 -                     let tx_hash = Hash([((thread_id * tx_per_thread + i) % 256) as u8; 32]);
+240 +                     let tx_hash = Hash::new(_);
+    |
+240 -                     let tx_hash = Hash([((thread_id * tx_per_thread + i) % 256) as u8; 32]);
+240 +                     let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0616]: field `0` of struct `klomang_core::Hash` is private
+   --> src/storage/tests.rs:246:61
+    |
+246 | ...                   previous_tx_hash: input.prev_tx.0.to_vec(),
+    |                                                       ^ private field
+
+error[E0609]: no field `script` on type `&TxOutput`
+   --> src/storage/tests.rs:251:44
+    |
+251 | ...                   script: output.script.clone(),
+    |                                      ^^^^^^ unknown field
+    |
+    = note: available fields are: `value`, `pubkey_hash`
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/tests.rs:249:65
+    |
+249 | ...|output| crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:277:27
+    |
+277 |             let tx_hash = Hash([(i % 256) as u8; 32]);
+    |                           ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+277 -             let tx_hash = Hash([(i % 256) as u8; 32]);
+277 +             let tx_hash = Hash::new(_);
+    |
+277 -             let tx_hash = Hash([(i % 256) as u8; 32]);
+277 +             let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:296:27
+    |
+296 |             let tx_hash = Hash([100u8; 32]);
+    |                           ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+296 -             let tx_hash = Hash([100u8; 32]);
+296 +             let tx_hash = Hash::new(_);
+    |
+296 -             let tx_hash = Hash([100u8; 32]);
+296 +             let tx_hash = Hash::from_bytes(_);
+    |
+
+error[E0063]: missing field `owner` in initializer of `TransactionOutput`
+   --> src/storage/tests.rs:300:31
+    |
+300 | ...ts: vec![crate::storage::schema::TransactionOutput {
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `owner`
+
+error[E0599]: no method named `write` found for struct `StorageDb` in the current scope
+   --> src/storage/tests.rs:308:16
+    |
+308 |             db.write(batch).expect("Failed to write batch");
+    |                ^^^^^ method not found in `StorageDb`
+    |
+   ::: src/storage/db.rs:150:1
+    |
+150 | pub struct StorageDb {
+    | -------------------- method `write` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `write`, perhaps you need to implement one of them:
+            candidate #1: `Hasher`
+            candidate #2: `ark_std::io::Write`
+            candidate #3: `der::writer::Writer`
+            candidate #4: `gimli::write::writer::Writer`
+            candidate #5: `itoa::private::Sealed`
+            candidate #6: `rkyv::ser::Serializer`
+            candidate #7: `std::io::Write`
+
+error[E0423]: cannot initialize a tuple struct which contains private fields
+   --> src/storage/tests.rs:326:27
+    |
+326 |             let tx_hash = Hash([100u8; 32]);
+    |                           ^^^^
+    |
+note: constructor is not visible here due to private fields
+   --> /workspaces/klomang-network/klomang-core/src/core/crypto/hash.rs:6:17
+    |
+  6 | pub struct Hash([u8; 32]);
+    |                 ^^^^^^^^ private field
+help: you might have meant to use an associated function to build this type
+    |
+326 -             let tx_hash = Hash([100u8; 32]);
+326 +             let tx_hash = Hash::new(_);
+    |
+326 -             let tx_hash = Hash([100u8; 32]);
+326 +             let tx_hash = Hash::from_bytes(_);
+    |
+
+Some errors have detailed explanations: E0061, E0063, E0107, E0119, E0277, E0308, E0423, E0428, E0432...
+warning: `klomang-node` (lib test) generated 17 warnings (13 duplicates)
+error: could not compile `klomang-node` (lib test) due to 118 previous errors; 17 warnings emitted

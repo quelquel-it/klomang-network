@@ -21,7 +21,7 @@ pub mod tests;
 
 pub use db::StorageDb;
 pub use batch::WriteBatch;
-pub use integration::{CoreIntegration, MempoolStorage, NetworkStorage};
+pub use integration::CoreIntegration;
 pub use cf::{all_column_families, ColumnFamilyName};
 pub use cache::StorageCacheLayer;
 pub use concurrency::{StorageEngine, StorageReadExecutor, StorageWriter};
@@ -29,7 +29,6 @@ pub use backup::{BackupManager, DatabaseBackupEngine, DatabaseRestoreEngine, Dat
 pub use schema::STORAGE_SCHEMA_VERSION;
 pub use error::{StorageError, StorageResult};
 pub use config::StorageConfig;
-pub use cache::StorageCacheLayer;
 pub use kv_store::KvStore;
 pub use atomic_write::{AtomicBlockWriter, BlockTransactionBatch, SpentUtxoBatch};
 pub use read_path::{ReadPath, OutPoint};

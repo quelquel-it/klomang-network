@@ -1,12 +1,11 @@
+use std::convert::TryInto;
 use std::sync::Arc;
 
-use crate::storage::cache::StorageCacheLayer;
-use crate::storage::db::StorageDb;
 use crate::storage::cf::ColumnFamilyName;
+use crate::storage::cache::StorageCacheLayer;
 use crate::storage::schema::*;
 use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::atomic_write::{AtomicBlockWriter, BlockTransactionBatch};
-use rocksdb::Error as RocksError;
 
 /// Strongly-typed key-value store operations for Klomang blockchain storage
 pub struct KvStore {
@@ -68,6 +67,90 @@ impl KvStore {
 
     pub fn put_mempool_transaction(&self, tx_hash: Vec<u8>, tx: TransactionValue) {
         self.cache_layer.insert_mempool_transaction(tx_hash, tx);
+    }
+
+    pub fn put_mempool_min_fee_rate(&self, min_fee_rate: u64) -> StorageResult<()> {
+        self.cache_layer
+            .db()
+            .put(ColumnFamilyName::Default, b"mempool:min_fee_rate", &min_fee_rate.to_be_bytes())
+            .map_err(|e| StorageError::from(e))
+    }
+
+    pub fn get_mempool_min_fee_rate(&self) -> StorageResult<Option<u64>> {
+        match self
+            .cache_layer
+            .db()
+            .get(ColumnFamilyName::Default, b"mempool:min_fee_rate")?
+        {
+            Some(raw) if raw.len() == 8 => {
+                let bytes: [u8; 8] = raw.as_slice().try_into().map_err(|_| {
+                    StorageError::DbError("invalid persisted min fee rate bytes".to_string())
+                })?;
+                Ok(Some(u64::from_be_bytes(bytes)))
+            }
+            Some(_) => Err(StorageError::DbError(
+                "invalid persisted min fee rate length".to_string(),
+            )),
+            None => Ok(None),
+        }
+    }
+
+    /// Store historical system load metrics for trend analysis
+    pub fn put_system_load_trend(&self, timestamp: u64, cpu_percent: f64, ram_percent: f64, tx_count: usize) -> StorageResult<()> {
+        let key = format!("system_load:{}", timestamp);
+        let value = bincode::serialize(&(cpu_percent, ram_percent, tx_count))
+            .map_err(|e| StorageError::SerializationError(e))?;
+
+        self.cache_layer
+            .db()
+            .put(ColumnFamilyName::Default, key.as_bytes(), &value)
+            .map_err(|e| StorageError::from(e))
+    }
+
+    /// Get historical system load metrics
+    pub fn get_system_load_trend(&self, timestamp: u64) -> StorageResult<Option<(f64, f64, usize)>> {
+        let key = format!("system_load:{}", timestamp);
+        match self
+            .cache_layer
+            .db()
+            .get(ColumnFamilyName::Default, key.as_bytes())?
+        {
+            Some(raw) => {
+                let (cpu_percent, ram_percent, tx_count): (f64, f64, usize) = bincode::deserialize(&raw)
+                    .map_err(|e| StorageError::SerializationError(e))?;
+                Ok(Some((cpu_percent, ram_percent, tx_count)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Get average system load over the last N hours
+    pub fn get_average_system_load(&self, hours: u64) -> StorageResult<(f64, f64)> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let start_time = now.saturating_sub(hours * 3600);
+        let mut total_cpu = 0.0;
+        let mut total_ram = 0.0;
+        let mut count = 0;
+
+        // Scan recent load entries (simplified - in production, use proper time range queries)
+        for hour_offset in 0..hours {
+            let timestamp = now.saturating_sub(hour_offset * 3600);
+            if let Some((cpu, ram, _)) = self.get_system_load_trend(timestamp)? {
+                total_cpu += cpu;
+                total_ram += ram;
+                count += 1;
+            }
+        }
+
+        if count == 0 {
+            Ok((0.0, 0.0))
+        } else {
+            Ok((total_cpu / count as f64, total_ram / count as f64))
+        }
     }
 
     pub fn get_mempool_transaction(&self, tx_hash: &[u8]) -> Option<TransactionValue> {
@@ -214,7 +297,7 @@ impl KvStore {
         dag_tips: &DagTipsValue,
     ) -> StorageResult<()> {
         AtomicBlockWriter::commit_block_to_storage(
-            &self.db,
+            self.cache_layer.db(),
             block_hash,
             block_value,
             header_value,
@@ -240,7 +323,7 @@ impl KvStore {
         dag_tips: &DagTipsValue,
     ) -> StorageResult<()> {
         AtomicBlockWriter::commit_block_to_storage_no_wal(
-            &self.db,
+            self.cache_layer.db(),
             block_hash,
             block_value,
             header_value,
@@ -248,11 +331,5 @@ impl KvStore {
             dag_node,
             dag_tips,
         )
-    }
-}
-
-impl From<RocksError> for StorageError {
-    fn from(err: RocksError) -> Self {
-        StorageError::DbError(err.to_string())
     }
 }
