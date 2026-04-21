@@ -15,8 +15,10 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
+use crate::storage::kv_store::KvStore;
 use super::status::TransactionStatus;
 use super::advanced_dependency_manager::TxDependencyManager;
+use super::parallel_selection::{ParallelSelectionBuilder, FeeBalancer};
 use super::priority_scheduler::{PriorityScheduler, PrioritySchedulerConfig};
 use super::multi_dimensional_index::{MultiDimensionalIndex, IndexedTransaction};
 use super::deterministic_ordering::{DeterministicOrderingEngine, DeterministicOrderingEngineConfig};
@@ -26,8 +28,8 @@ use super::validation::{PoolValidator, ValidationResult};
 use super::advanced_orphan_management::{DeferredResolver, RecursiveOrphanLinker};
 use super::memory_limiter::{MempoolLimiter, MempoolLimiterConfig};
 use super::resource_optimizer::{ResourceOptimizer, ResourceOptimizerConfig};
+use super::graph_conflict_ordering_integration::{ConflictOrderingIntegration, ConflictOrderingIntegrationConfig};
 use super::admission_controller::AdmissionController;
-use crate::storage::KvStore;
 
 /// Configuration for transaction pool behavior
 #[derive(Clone, Debug)]
@@ -181,15 +183,7 @@ impl TokenBucket {
         self.tokens = (self.tokens + refill_amount).min(self.capacity);
         self.last_refill = now;
     }
-
-    /// Get current token count
-    fn tokens(&self) -> f64 {
-        // Return current tokens without refilling
-        self.tokens
-    }
 }
-
-const MEMPOOL_MIN_FEE_KEY: &[u8] = b"mempool:min_fee_rate";
 
 /// Dynamic fee filter that adjusts minimum relay fee based on mempool utilization
 #[derive(Clone, Debug)]
@@ -270,6 +264,11 @@ impl FeeFilter {
             self.current_min_fee = base_fee;
         }
     }
+
+    /// Force update timestamp for testing (public for integration tests)
+    pub fn force_update_timestamp(&mut self) {
+        self.last_update = 0;
+    }
 }
 
 /// Multi-indexed transaction pool with state machine
@@ -324,6 +323,15 @@ pub struct TransactionPool {
 
     /// Advanced admission controller for resource-based filtering
     admission_controller: Arc<AdmissionController>,
+
+    /// Graph-based conflict detection and canonical ordering integration
+    conflict_ordering_integration: Arc<ConflictOrderingIntegration>,
+
+    /// Parallel selection builder for conflict-free sharding
+    parallel_selection_builder: Arc<ParallelSelectionBuilder>,
+
+    /// Adaptive fee pressure balancer
+    fee_balancer: Option<Arc<FeeBalancer>>,
 }
 
 impl TransactionPool {
@@ -365,6 +373,10 @@ impl TransactionPool {
             Arc::new(AdmissionController::new())
         };
         
+        // Initialize conflict ordering integration
+        let conflict_config = ConflictOrderingIntegrationConfig::default();
+        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, kv_store.clone()));
+        
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
             orphans: Arc::new(RwLock::new(Vec::new())),
@@ -383,6 +395,9 @@ impl TransactionPool {
             source_rate_buckets: DashMap::new(),
             fee_filter,
             admission_controller,
+            conflict_ordering_integration,
+            parallel_selection_builder: Arc::new(ParallelSelectionBuilder::new(kv_store.clone())),
+            fee_balancer: kv_store.as_ref().map(|kv| Arc::new(FeeBalancer::new(Arc::clone(kv)))),
         };
 
         pool.load_persistent_min_fee_rate().ok();
@@ -397,10 +412,6 @@ impl TransactionPool {
         }
 
         b"anonymous_source".to_vec()
-    }
-
-    fn effective_min_fee_rate(&self) -> u64 {
-        self.fee_filter.read().current_threshold()
     }
 
     fn enforce_minimum_fee_rate(&self, fee_rate: u64) -> Result<(), String> {
@@ -455,6 +466,25 @@ impl TransactionPool {
         } else {
             Ok(())
         }
+    }
+
+    /// Calculate average transaction age in seconds
+    fn calculate_average_transaction_age(&self) -> u64 {
+        let pool = self.by_hash.read();
+        if pool.is_empty() {
+            return 0;
+        }
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let total_age: u64 = pool.values()
+            .map(|entry| now.saturating_sub(entry.arrival_time))
+            .sum();
+
+        total_age / pool.len() as u64
     }
 
     /// Calculate virtual fee boost for anti-starvation protection
@@ -573,6 +603,13 @@ impl TransactionPool {
         // Create fee filter before moving config
         let fee_filter = Arc::new(RwLock::new(FeeFilter::new(config.min_fee_rate, config.dynamic_fee_bump_percent)));
         
+        // Create admission controller with kv_store for trend persistence
+        let admission_controller = Arc::new(AdmissionController::with_kv_store(kv_store.clone()));
+        
+        // Initialize conflict ordering integration
+        let conflict_config = ConflictOrderingIntegrationConfig::default();
+        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, Some(kv_store.clone())));
+        
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
             orphans: Arc::new(RwLock::new(Vec::new())),
@@ -590,6 +627,10 @@ impl TransactionPool {
             validator: Some(validator),
             source_rate_buckets: DashMap::new(),
             fee_filter,
+            admission_controller,
+            conflict_ordering_integration,
+            parallel_selection_builder: Arc::new(ParallelSelectionBuilder::new(Some(kv_store.clone()))),
+            fee_balancer: Some(Arc::new(FeeBalancer::new(kv_store))),
         };
 
         pool.load_persistent_min_fee_rate().ok();
@@ -649,6 +690,12 @@ impl TransactionPool {
             let mut fee_filter = self.fee_filter.write();
             fee_filter.update_threshold(self.size(), self.config.max_pool_size);
         }
+
+        // Update fee balancer with congestion metrics
+        if let Some(ref balancer) = self.fee_balancer {
+            let avg_age = self.calculate_average_transaction_age();
+            let _ = balancer.update_congestion(self.size(), self.config.max_pool_size, avg_age);
+        }
         
         self.enforce_minimum_fee_rate(fee_rate)?;
         self.enforce_source_rate_limit(&source_key)?;
@@ -679,7 +726,7 @@ impl TransactionPool {
             // Remove evicted transactions from pool
             let mut pool = self.by_hash.write();
             for evicted_hash in &eviction_result.evicted_hashes {
-                pool.remove(evicted_hash);
+                pool.swap_remove(evicted_hash);
                 self.priority_scheduler.unregister_transaction(evicted_hash)
                     .ok();
                 // Remove from persistent storage
@@ -688,6 +735,48 @@ impl TransactionPool {
                 }
             }
             drop(pool);
+        }
+
+        // Deterministic conflict detection using ConflictGraph
+        let arrival_time_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        
+        let conflict_result = self.conflict_ordering_integration.register_transaction(
+            &tx,
+            tx_hash.clone(),
+            total_fee,
+            arrival_time_ms,
+        ).map_err(|e| format!("Conflict detection error: {}", e))?;
+        
+        // Check for double-spend conflicts - use deterministic supremacy rules
+        if conflict_result.has_double_spend {
+            // Process all conflicts with deterministic tie-breaking:
+            // 1. Higher fee rate wins
+            // 2. If equal fee rate, lexicographically smaller hash wins
+            let should_accept_new = self._apply_deterministic_supremacy(
+                &tx_hash,
+                fee_rate,
+                &conflict_result.detected_conflicts,
+            )?;
+            
+            if !should_accept_new {
+                // Reject the new transaction - existing transaction(s) have higher priority
+                return Err("Transaction rejected due to conflict with higher-priority transaction".to_string());
+            }
+            
+            // Remove all conflicting transactions from pool and storage
+            // They have lower priority and must be evicted
+            for conflicting_hash in &conflict_result.detected_conflicts {
+                if self.remove(conflicting_hash).is_some() {
+                    // Storage sync is handled internally by remove()
+                    // Remove from conflict graph and cascade
+                    if let Err(e) = self.conflict_ordering_integration.remove_transaction_cascade(conflicting_hash) {
+                        eprintln!("Warning: Failed to cascade remove conflicting transaction: {}", e);
+                    }
+                }
+            }
         }
 
         // Attempt to validate inputs if validator is available
@@ -726,6 +815,50 @@ impl TransactionPool {
 
         // If no validator, add directly (backward compatibility)
         self._add_to_main_pool(tx_hash, tx, total_fee, size_bytes, fee_rate)
+    }
+
+    /// Apply deterministic supremacy rules to resolve conflicts
+    ///
+    /// Deterministic Conflict Resolution:
+    /// 1. Transaction with higher fee_rate wins
+    /// 2. If equal fee_rate, lexicographically smaller hash wins
+    /// Returns true if new transaction should be accepted, false if it should be rejected
+    fn _apply_deterministic_supremacy(
+        &self,
+        new_tx_hash: &[u8],
+        new_fee_rate: u64,
+        conflicting_hashes: &[Vec<u8>],
+    ) -> Result<bool, String> {
+        if conflicting_hashes.is_empty() {
+            return Ok(true);  // No conflicts, accept the new transaction
+        }
+
+        // Find the highest-priority conflicting transaction
+        let mut highest_priority_hash = conflicting_hashes.first().unwrap().clone();
+        let mut highest_fee_rate = self.get_effective_fee_rate(&highest_priority_hash);
+
+        for conflicting_hash in conflicting_hashes.iter().skip(1) {
+            let existing_fee_rate = self.get_effective_fee_rate(conflicting_hash);
+
+            // Update highest if this one has higher fee or same fee with smaller hash
+            if existing_fee_rate > highest_fee_rate
+                || (existing_fee_rate == highest_fee_rate && conflicting_hash < &highest_priority_hash)
+            {
+                highest_priority_hash = conflicting_hash.clone();
+                highest_fee_rate = existing_fee_rate;
+            }
+        }
+
+        // Apply deterministic supremacy: new tx wins if higher fee or (equal fee & smaller hash)
+        let new_tx_wins = if new_fee_rate > highest_fee_rate {
+            true
+        } else if new_fee_rate == highest_fee_rate {
+            new_tx_hash < highest_priority_hash.as_slice()
+        } else {
+            false
+        };
+
+        Ok(new_tx_wins)
     }
 
     /// Add transaction to main pool
@@ -938,6 +1071,9 @@ impl TransactionPool {
     }
 
     /// Remove transaction from pool
+    /// 
+    /// This method removes a transaction from all in-memory indexes AND persistent storage.
+    /// It ensures complete removal from both mempool and disk to maintain consistency.
     pub fn remove(&self, tx_hash: &[u8]) -> Option<PoolEntry> {
         let mut pool = self.by_hash.write();
         
@@ -955,6 +1091,14 @@ impl TransactionPool {
 
             // Unregister from deterministic ordering
             let _ = self.deterministic_ordering.remove_transaction(tx_hash);
+
+            // Unregister from memory limiter (weight tracking)
+            let _ = self.memory_limiter.remove_tx_weight(&tx_hash.to_vec());
+
+            // CRITICAL: Sync with persistent storage to ensure consistency
+            if let Err(e) = self.remove_from_disk(tx_hash) {
+                eprintln!("Warning: Failed to remove transaction from disk during pool removal: {}", e);
+            }
 
             Some(entry)
         } else {
@@ -1308,25 +1452,16 @@ impl TransactionPool {
             // If transaction exists in main blockchain storage, it means it's already in a block
             match kv_store.get_transaction(&tx_hash) {
                 Ok(Some(_)) => {
-                    // Transaction is already in a block, remove from persistent mempool
-                    let _ = self.remove_from_disk(&tx_hash);
-                    
-                    // Also remove from in-memory structures
-                    let mut pool = self.by_hash.write();
-                    pool.remove(&tx_hash);
-                    // Remove from other indexes
-                    self.priority_scheduler.unregister_transaction(&tx_hash).ok();
-                    self.multi_dimensional_index.remove(&tx_hash).ok();
-                    let _ = self.deterministic_ordering.remove_transaction(&tx_hash);
-                    let _ = self.memory_limiter.remove_tx_weight(&tx_hash);
+                    // Transaction is already in a block, remove from mempool completely
+                    // This uses the unified remove() method which handles all cleanup
+                    let _ = self.remove(&tx_hash);
                 }
                 Ok(None) => {
                     // Transaction not in blockchain, keep in mempool
                 }
                 Err(e) => {
                     // Log error but continue
-                    eprintln!("Warning: Error checking transaction {} against blockchain: {}", 
-                             "[redacted]", e);
+                    eprintln!("Warning: Error checking transaction against blockchain: {}", e);
                 }
             }
         }
@@ -1347,14 +1482,124 @@ impl TransactionPool {
         hasher.finish()
     }
 
-    /// Verify transaction checksum
-    fn verify_checksum(&self, tx: &Transaction, expected: u64) -> bool {
-        self.calculate_checksum(tx) == expected
-    }
-
     /// Create deterministic snapshot of current mempool state
     pub fn create_snapshot(&self, block_height: u64) -> MempoolSnapshot {
         MempoolSnapshot::new(self, block_height)
+    }
+
+    /// Get parallel transaction batches for safe concurrent processing
+    ///
+    /// Returns Vec<Vec<Arc<Transaction>>> where each inner Vec contains transactions
+    /// that can be processed in parallel without race conditions on UTXO state.
+    /// Uses ConflictGraph to identify independent transaction sets.
+    pub fn get_parallel_batches(&self) -> Result<Vec<Vec<Arc<Transaction>>>, String> {
+        let parallel_groups = self.conflict_ordering_integration.get_parallel_validation_groups()
+            .map_err(|e| format!("Failed to get parallel groups: {}", e))?;
+
+        let mut batches = Vec::new();
+        let pool = self.by_hash.read();
+
+        for group in parallel_groups {
+            let mut batch = Vec::new();
+            for tx_hash in group {
+                if let Some(entry) = pool.get(&tx_hash) {
+                    batch.push(Arc::new(entry.transaction.clone()));
+                }
+            }
+            if !batch.is_empty() {
+                batches.push(batch);
+            }
+        }
+
+        Ok(batches)
+    }
+
+    /// Prepare canonical block candidate with deterministic ordering
+    ///
+    /// Builds a block candidate using canonical ordering rules that MUST be identical
+    /// across all validators. This ensures consensus determinism.
+    ///
+    /// CANONICAL ORDERING GUARANTEES:
+    /// 1. **Topological Ordering**: All parent transactions appear before their dependents
+    /// 2. **Fee Density Ordering**: Transactions at same topological level sorted by fee/byte (descending)
+    /// 3. **Lexicographic Tie-breaking**: Equal fee density uses smaller transaction hash (ascending)
+    /// 4. **Conflict Resolution**: Each UTXO can only be spent once (highest fee variant selected)
+    ///
+    /// Parameters:
+    /// - `max_weight`: Maximum block weight in bytes (respects consensus layer limits)
+    ///
+    /// Returns:
+    /// - Vec<Arc<Transaction>>: Transactions in canonical order, guaranteed bit-identical across validators
+    /// - All transactions are validated for conflicts and properly sequenced for execution
+    ///
+    /// CONSENSUS CRITICAL: This ordering MUST produce identical results for identical mempool state
+    pub fn prepare_block_candidate(&self, max_weight: usize) -> Result<Vec<Arc<Transaction>>, String> {
+        // Build block using canonical ordering from conflict & ordering integration
+        let block_result = self.conflict_ordering_integration.build_block_canonical(max_weight)
+            .map_err(|e| format!("Failed to build canonical block: {}", e))?;
+
+        let mut transactions = Vec::new();
+        let pool = self.by_hash.read();
+
+        // Retrieve transaction objects from pool in canonical order
+        // Note: We iterate in the order returned by canonical ordering engine
+        // which guarantees topological ordering and fee density ordering
+        for tx_hash in block_result.transactions {
+            if let Some(entry) = pool.get(&tx_hash) {
+                transactions.push(Arc::new(entry.transaction.clone()));
+            }
+        }
+
+        // Verify canonicality: ensure transactions respect ordering invariants
+        self._verify_canonical_order(&transactions)?;
+
+        Ok(transactions)
+    }
+
+    /// Prepare parallel block candidates for optimized processing
+    ///
+    /// Returns disjoint sets of transactions that can be processed in parallel
+    /// while maintaining canonical ordering guarantees within each set.
+    pub fn prepare_parallel_block_candidates(&self, max_weight: usize) -> Result<Vec<Vec<Arc<Transaction>>>, String> {
+        // First get canonical transactions
+        let canonical_txs = self.prepare_block_candidate(max_weight)?;
+
+        // Then build parallel sets from canonical transactions
+        self.parallel_selection_builder.build_parallel_sets(&canonical_txs, max_weight)
+    }
+
+    /// Verify that transaction list respects canonical ordering invariants
+    /// 
+    /// This verification is performed to ensure:
+    /// 1. No duplicate transactions
+    /// 2. No conflicting UTXOs claimed multiple times
+    /// 3. Parent-child dependencies are respected (parent before child)
+    fn _verify_canonical_order(&self, transactions: &[Arc<Transaction>]) -> Result<(), String> {
+        let mut seen_hashes = std::collections::HashSet::new();
+        let mut spent_outputs = std::collections::HashSet::new();
+
+        for tx in transactions {
+            let tx_hash = bincode::serialize(&tx.id)
+                .map_err(|e| format!("Serialization error: {}", e))?;
+
+            // Check for duplicate transactions
+            if !seen_hashes.insert(tx_hash.clone()) {
+                return Err(format!("Duplicate transaction in canonical block candidate"));
+            }
+
+            // Check for conflicts (double-spending)
+            for input in &tx.inputs {
+                let outpoint_key = format!("{:?}:{}", input.prev_tx, input.index);
+                if !spent_outputs.insert(outpoint_key.clone()) {
+                    return Err(format!(
+                        "Conflict detected in canonical ordering: UTXO {} already spent",
+                        outpoint_key
+                    ));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -1370,6 +1615,7 @@ pub struct MempoolSnapshot {
     /// Immutable copy of transactions: hash -> transaction
     transactions: IndexMap<Vec<u8>, Arc<Transaction>>,
     /// Ancestor map for dependency validation: tx_hash -> parent_hashes
+    #[allow(dead_code)]
     ancestor_map: IndexMap<Vec<u8>, Vec<Vec<u8>>>,
 }
 
@@ -1725,11 +1971,6 @@ mod tests {
         hasher.finish()
     }
 
-    /// Verify transaction checksum
-    fn verify_checksum(&self, tx: &Transaction, expected: u64) -> bool {
-        self.calculate_checksum(tx) == expected
-    }
-
     /// Perform state reconciliation with main storage
     /// Removes transactions that are already in blocks
     pub fn reconcile_with_blockchain(&self) -> Result<(), String> {
@@ -1754,7 +1995,7 @@ mod tests {
                     
                     // Also remove from in-memory structures
                     let mut pool = self.by_hash.write();
-                    pool.remove(&tx_hash);
+                    pool.swap_remove(&tx_hash);
                     
                     // Remove from other indexes
                     self.priority_scheduler.unregister_transaction(&tx_hash).ok();

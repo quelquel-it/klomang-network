@@ -133,7 +133,7 @@ impl AdmissionController {
 
     /// Check if transaction should be admitted based on current resources
     /// Returns (should_admit, required_fee_multiplier)
-    pub fn should_admit_transaction(&self, base_fee_rate: u64) -> (bool, u64) {
+    pub fn should_admit_transaction(&self, _base_fee_rate: u64) -> (bool, u64) {
         // Always update metrics before checking
         let _ = self.update_metrics();
 

@@ -99,7 +99,7 @@ impl KvStore {
     pub fn put_system_load_trend(&self, timestamp: u64, cpu_percent: f64, ram_percent: f64, tx_count: usize) -> StorageResult<()> {
         let key = format!("system_load:{}", timestamp);
         let value = bincode::serialize(&(cpu_percent, ram_percent, tx_count))
-            .map_err(|e| StorageError::SerializationError(e))?;
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
 
         self.cache_layer
             .db()
@@ -117,7 +117,7 @@ impl KvStore {
         {
             Some(raw) => {
                 let (cpu_percent, ram_percent, tx_count): (f64, f64, usize) = bincode::deserialize(&raw)
-                    .map_err(|e| StorageError::SerializationError(e))?;
+                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some((cpu_percent, ram_percent, tx_count)))
             }
             None => Ok(None),
@@ -131,7 +131,7 @@ impl KvStore {
             .unwrap_or_default()
             .as_secs();
 
-        let start_time = now.saturating_sub(hours * 3600);
+        let _start_time = now.saturating_sub(hours * 3600);
         let mut total_cpu = 0.0;
         let mut total_ram = 0.0;
         let mut count = 0;

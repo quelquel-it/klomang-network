@@ -46,6 +46,9 @@ pub mod background_batch_processor;
 pub mod memory_limiter;
 pub mod resource_optimizer;
 pub mod admission_controller;
+pub mod graph_conflict_ordering;
+pub mod graph_conflict_ordering_integration;
+pub mod parallel_selection;
 
 pub use status::{TransactionStatus, TransactionStatusError};
 pub use pool::{TransactionPool, PoolConfig, PoolEntry, PoolStats, FeeFilter};
@@ -130,4 +133,7 @@ pub use memory_limiter::{
 pub use resource_optimizer::{
     ResourceOptimizer, ResourceOptimizerConfig, HotTier, ColdTier,
     HybridPolicy, TransactionMetadata, HotTierStats, ResourceOptimizerStats,
+};
+pub use parallel_selection::{
+    ParallelSelectionBuilder, FeeBalancer,
 };

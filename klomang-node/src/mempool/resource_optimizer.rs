@@ -43,9 +43,6 @@ impl KvStore {
     pub fn new_dummy() -> Self {
         // For testing purposes, we'll create a KvStore that doesn't actually store
         // but provides the interface. In production, this should never be used.
-        use crate::storage::cache::StorageCacheLayer;
-        use crate::storage::db::StorageDb;
-        use std::sync::Arc;
         
         // This will panic in tests, but that's acceptable for now
         // Real implementation would need in-memory RocksDB
@@ -284,7 +281,7 @@ impl ColdTier {
     pub fn retrieve_transaction(&self, tx_hash: &[u8]) -> Result<Option<Arc<Transaction>>, String> {
         match self.kv_store.get_transaction(tx_hash)
             .map_err(|e| format!("Storage error: {:?}", e))? {
-            Some(tx_value) => {
+            Some(_tx_value) => {
                 // Convert back to Transaction (simplified - in real implementation would need full conversion)
                 // For now, return None as placeholder since full conversion is complex
                 // TODO: Implement full TransactionValue -> Transaction conversion
@@ -553,7 +550,6 @@ pub struct ResourceOptimizerStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::cache::StorageCacheLayer;
 
     #[test]
     fn test_hot_tier_add_get() {
