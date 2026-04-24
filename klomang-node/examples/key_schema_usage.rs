@@ -1,12 +1,19 @@
 // Example usage of KvStore with Key Schema Design and Performance Optimization
 #![allow(dead_code)]
 
+use std::sync::Arc;
+
 use klomang_node::storage::{
-    StorageDb, StorageConfig, KvStore,
-    BlockValue, HeaderValue, TransactionValue, TransactionInput, TransactionOutput,
-    UtxoValue, UtxoSpentValue, VerkleStateValue, DagNodeValue, DagTipsValue,
+    StorageDb, StorageConfig, KvStore, StorageCacheLayer,
 };
-use std::path::PathBuf;
+
+use klomang_node::storage::schema::{
+    BlockValue, TransactionValue, TransactionInput, TransactionOutput,
+    UtxoValue, UtxoSpentValue, DagNodeValue, DagTipsValue,
+};
+
+use klomang_node::storage::metrics::StorageMetrics;
+use klomang_core::NoOpMetricsCollector;
 
 /// Example: Configure RocksDB for High TPS Performance
 pub fn example_performance_config() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,8 +26,9 @@ pub fn example_performance_config() -> Result<(), Box<dyn std::error::Error>> {
         .with_write_buffer_size(128 * 1024 * 1024);    // 128MB write buffer
 
     // Open database with performance optimizations
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let _kv_store = KvStore::new(cache_layer);
 
     println!("Database opened with high TPS optimizations:");
     println!("- Block cache: {} GB", config.block_cache_size / (1024 * 1024 * 1024));
@@ -33,8 +41,9 @@ pub fn example_performance_config() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Store and retrieve a block
 pub fn example_block_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./blockchain_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     // Create a sample block
     let block_hash = b"block123456789abcdef0123456789ab";
@@ -65,8 +74,9 @@ pub fn example_block_operations() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: UTXO management
 pub fn example_utxo_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./blockchain_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     let tx_hash = b"transaction_hash_________________________".to_vec();
     let output_index = 0u32;
@@ -105,8 +115,9 @@ pub fn example_utxo_operations() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: DAG structure storage
 pub fn example_dag_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./blockchain_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     let block_hash = b"dag_block_hash__________________________".to_vec();
 
@@ -140,23 +151,12 @@ pub fn example_dag_operations() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Verkle state storage
 pub fn example_verkle_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./blockchain_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let _kv_store = KvStore::new(cache_layer);
 
-    // Create and store Verkle tree nodes
-    let path = b"verkle_path_123456789abcdef0123456789";
-    let state = VerkleStateValue::new(
-        path.to_vec(),
-        b"node_commitment_value".to_vec(),
-        true,  // is_leaf
-    );
-
-    kv_store.put_verkle_state(path, &state)?;
-
-    // Retrieve Verkle state
-    if let Some(retrieved_state) = kv_store.get_verkle_state(path)? {
-        println!("Verkle state is_leaf: {}", retrieved_state.is_leaf);
-    }
+    // Note: Verkle state operations would be implemented here
+    println!("Verkle state operations not implemented in this example");
 
     Ok(())
 }
@@ -164,8 +164,9 @@ pub fn example_verkle_operations() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Transaction storage
 pub fn example_transaction_operations() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./blockchain_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     let tx_hash = b"tx_hash_32bytes__________________________";
 
@@ -181,13 +182,11 @@ pub fn example_transaction_operations() -> Result<(), Box<dyn std::error::Error>
         outputs: vec![
             TransactionOutput {
                 amount: 25_000_000,
-                script: b"output_script_1".to_vec(),
-                owner: b"address_1".to_vec(),
+                pubkey_hash: b"address_1".to_vec(),
             },
             TransactionOutput {
                 amount: 24_990_000,
-                script: b"output_script_2".to_vec(),
-                owner: b"address_2".to_vec(),
+                pubkey_hash: b"address_2".to_vec(),
             },
         ],
         fee: 10_000,

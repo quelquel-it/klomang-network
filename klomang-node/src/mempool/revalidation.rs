@@ -298,7 +298,7 @@ mod tests {
     fn test_conflict_detection() {
         let block_tx = create_test_tx(1, vec![]);
         
-        let mut block = BlockNode {
+        let block = BlockNode {
             header: klomang_core::core::dag::BlockHeader {
                 id: Hash::new(&[0u8; 32]),
                 parents: HashSet::new(),
@@ -325,7 +325,7 @@ mod tests {
     fn test_affected_transaction_detection() {
         let block_tx = create_test_tx(1, vec![(2, 0)]);
         
-        let mut block = BlockNode {
+        let block = BlockNode {
             header: klomang_core::core::dag::BlockHeader {
                 id: Hash::new(&[0u8; 32]),
                 parents: HashSet::new(),

@@ -379,6 +379,7 @@ fn format_hash(tx_hash: &TxHash) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mempool::pool::PoolConfig;
     use std::sync::Arc;
 
     fn tx_hash(id: u8) -> TxHash {
@@ -387,12 +388,10 @@ mod tests {
 
     #[test]
     fn test_manager_creation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflicts = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(std::collections::VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(conflicts, graph, pool, kv_store);
         
@@ -402,12 +401,10 @@ mod tests {
 
     #[test]
     fn test_conflict_status() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflicts = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(std::collections::VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(conflicts, graph, pool, kv_store);
         let tx = tx_hash(1);

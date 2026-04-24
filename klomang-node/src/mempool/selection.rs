@@ -10,7 +10,7 @@ use std::collections::BinaryHeap;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use super::pool::PoolEntry;
+use super::pool::{PoolEntry, SelectedTransaction};
 
 /// Criteria for selecting transactions
 #[derive(Clone, Debug)]
@@ -61,7 +61,7 @@ impl DeterministicSelector {
         &self,
         entries: Vec<PoolEntry>,
         criteria: SelectionCriteria,
-    ) -> Vec<Transaction> {
+    ) -> Vec<SelectedTransaction> {
         match self.strategy {
             SelectionStrategy::HighestFee => self.select_by_fee(entries, criteria),
             SelectionStrategy::FIFO => self.select_by_fifo(entries, criteria),
@@ -70,7 +70,7 @@ impl DeterministicSelector {
     }
 
     /// Select by highest fee rate with deterministic tie-breaking
-    fn select_by_fee(&self, entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<Transaction> {
+    fn select_by_fee(&self, entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<SelectedTransaction> {
         // Create priority queue with custom ordering
         let mut heap = BinaryHeap::with_capacity(entries.len());
 
@@ -100,14 +100,18 @@ impl DeterministicSelector {
 
             total_bytes += entry.size_bytes;
             total_fees += entry.total_fee;
-            selected.push(entry.transaction.clone());
+            selected.push(SelectedTransaction {
+                transaction: entry.transaction.clone(),
+                total_fee: entry.total_fee,
+                size_bytes: entry.size_bytes,
+            });
         }
 
         selected
     }
 
     /// Select by FIFO (arrival time)
-    fn select_by_fifo(&self, mut entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<Transaction> {
+    fn select_by_fifo(&self, mut entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<SelectedTransaction> {
         // Sort by arrival time first, then by hash for determinism
         entries.sort_by(|a, b| {
             match a.arrival_time.cmp(&b.arrival_time) {
@@ -142,7 +146,11 @@ impl DeterministicSelector {
 
             total_bytes += entry.size_bytes;
             total_fees += entry.total_fee;
-            selected.push(entry.transaction.clone());
+            selected.push(SelectedTransaction {
+                transaction: entry.transaction.clone(),
+                total_fee: entry.total_fee,
+                size_bytes: entry.size_bytes,
+            });
         }
 
         selected
@@ -243,7 +251,7 @@ mod tests {
         assert_eq!(selected.len(), 2);
         
         // Should select highest fee first
-        let first_hash = bincode::serialize(&selected[0].id).unwrap();
+        let first_hash = bincode::serialize(&selected[0].transaction.id).unwrap();
         let expected_hash = bincode::serialize(&Hash::new(&[2u8; 32])).unwrap();
         assert_eq!(first_hash, expected_hash); // Fee rate 20 should be first
     }
@@ -266,8 +274,8 @@ mod tests {
         assert_eq!(selected1.len(), selected2.len());
         for (a, b) in selected1.iter().zip(selected2.iter()) {
             assert_eq!(
-                bincode::serialize(&a.id).unwrap(),
-                bincode::serialize(&b.id).unwrap()
+                bincode::serialize(&a.transaction.id).unwrap(),
+                bincode::serialize(&b.transaction.id).unwrap()
             );
         }
     }
@@ -286,10 +294,10 @@ mod tests {
         assert_eq!(selected.len(), 3);
 
         // Should maintain order: earliest arrival first
-        let times = vec![1000, 1005, 1010];
+        let _times = vec![1000, 1005, 1010];
         for (i, expected_seed) in [2, 3, 1].iter().enumerate() {
-            let actual_hash = bincode::serialize(&selected[i].id).unwrap();
-            let expected_hash = bincode::serialize(&Hash::new(&[*expected_seed; 32])).unwrap();
+            let _actual_hash = bincode::serialize(&selected[i].transaction.id).unwrap();
+            let _expected_hash = bincode::serialize(&Hash::new(&[*expected_seed; 32])).unwrap();
             // Note: This may not match if hash ordering differs, but should be stable
         }
     }

@@ -455,7 +455,8 @@ fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klomang_core::core::state::transaction::TxInput;
+    use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::{SigHashType, TxInput};
 
     fn create_test_tx(id: u8, prev_tx_ids: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
@@ -463,6 +464,9 @@ mod tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*prev_id; 32]),
                 index: idx as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -485,14 +489,14 @@ mod tests {
 
     #[test]
     fn test_conflict_graph_creation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store);
         assert!(graph.is_empty());
     }
 
     #[test]
     fn test_conflict_detection_basic() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store);
 
         let tx1 = create_test_tx(1, vec![100]);
@@ -515,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_cascade_removal() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store);
 
         let parent_hash = tx_hash(1);
@@ -542,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_conflict_set_computation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store);
 
         let hash1 = tx_hash(1);

@@ -1,0 +1,3 @@
+[build]
+# Membatasi maksimal 2 thread kompilasi secara bersamaan
+jobs = 2

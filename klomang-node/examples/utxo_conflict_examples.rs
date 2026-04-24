@@ -3,11 +3,11 @@
 //! Demonstrates practical scenarios for UTXO ownership management and conflict resolution
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::{Transaction, TxInput};
+use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
 use std::sync::Arc;
 
 use klomang_node::mempool::{
-    UtxoOwnershipManager, TransactionPool, PoolConfig, UtxoTracker, OutPoint,
+    UtxoOwnershipManager, TransactionPool, PoolConfig,
 };
 use klomang_node::storage::kv_store::KvStore;
 
@@ -19,6 +19,9 @@ fn create_test_tx(id: u8, prev_tx_seeds: Vec<u8>) -> Transaction {
         .map(|(idx, seed)| TxInput {
             prev_tx: Hash::new(&[*seed; 32]),
             index: idx as u32,
+            signature: vec![],
+            pubkey: vec![],
+            sighash_type: SigHashType::All,
         })
         .collect();
 
@@ -40,7 +43,7 @@ pub fn example_basic_ownership_tracking() -> Result<(), Box<dyn std::error::Erro
     println!("=== Example 1: Basic Ownership Tracking ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Create transaction that spends two UTXOs
@@ -75,7 +78,7 @@ pub fn example_conflict_detection() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 2: Conflict Detection & Rejection ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Create first transaction spending UTXO from tx:10
@@ -113,7 +116,7 @@ pub fn example_rbf_replacement() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 3: Replace-By-Fee Replacement ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Create first transaction with low fee
@@ -157,7 +160,7 @@ pub fn example_transaction_removal() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 4: Transaction Removal & Cleanup ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Create and add transaction
@@ -194,7 +197,7 @@ pub fn example_conflict_analysis() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 5: Conflict Analysis & Diagnostics ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Add several transactions
@@ -231,7 +234,7 @@ pub fn example_multiple_conflicts() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 6: Multiple Conflict Scenarios ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Scenario A: Non-conflicting transactions
@@ -242,7 +245,7 @@ pub fn example_multiple_conflicts() -> Result<(), Box<dyn std::error::Error>> {
     manager.add_transaction_with_ownership(tx_a1.clone(), 1000, 250)?;
     match manager.add_transaction_with_ownership(tx_a2, 1000, 250) {
         Ok(_) => println!("✅ Both transactions accepted (no conflict)\n"),
-        Err(e) => println!("❌ ERROR: {} \n", e),
+        Err(e) => println!("❌ ERROR: {:?} \n", e),
     }
 
     // Scenario B: Conflict with lower fee rejection
@@ -282,7 +285,7 @@ pub fn example_blockchain_sync() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Example 7: Blockchain Synchronization ===\n");
 
     let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
-    let kv_store = Arc::new(KvStore::new_test());
+    let kv_store = Arc::new(KvStore::new_dummy());
     let manager = UtxoOwnershipManager::new(pool, kv_store);
 
     // Add transactions to mempool

@@ -5,9 +5,9 @@
 //! - Token bucket rate limiting per source
 //! - Fee threshold persistence
 
-use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput};
+use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
 use klomang_core::core::crypto::Hash;
-use klomang_node::mempool::{TransactionPool, PoolConfig, FeeFilter};
+use klomang_node::mempool::{PoolConfig, FeeFilter};
 
 fn create_test_tx(id: u8, pubkey: Vec<u8>) -> Transaction {
     Transaction {
@@ -15,9 +15,9 @@ fn create_test_tx(id: u8, pubkey: Vec<u8>) -> Transaction {
         inputs: vec![TxInput {
             prev_tx: Hash::new(&[id - 1; 32]),
             index: 0,
-            signature: vec![],
+            signature: vec![0; 64],
             pubkey,
-            sighash_type: klomang_core::core::state::transaction::SigHashType::All,
+            sighash_type: SigHashType::All,
         }],
         outputs: vec![TxOutput {
             value: 1000,
@@ -90,8 +90,8 @@ fn test_transaction_pool_creation() {
 #[test]
 fn test_source_key_derivation() {
     // Note: This test is conceptual; actual implementation depends on TransactionPool
-    let tx1 = create_test_tx(1, b"test_pubkey_1".to_vec());
-    let tx2 = create_test_tx(2, vec![]); // anonymous
+    let _tx1 = create_test_tx(1, b"test_pubkey_1".to_vec());
+    let _tx2 = create_test_tx(2, vec![]); // anonymous
 
     // Assuming derive_source_key is available; adjust based on actual API
     // let key1 = pool.derive_source_key(&tx1);

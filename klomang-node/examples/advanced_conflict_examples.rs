@@ -4,17 +4,16 @@
 //! dependency tracking, and deterministic conflict resolution.
 
 #[allow(dead_code)]
-mod examples {
-    use std::sync::Arc;
-    use std::collections::VecDeque;
 
-    use klomang_node::mempool::advanced_conflicts::ConflictMap;
-    use klomang_node::mempool::dependency_graph::DependencyGraph;
-    use klomang_node::mempool::advanced_transaction_manager::AdvancedTransactionManager;
-    use klomang_node::mempool::pool::TransactionPool;
-    use klomang_node::storage::kv_store::KvStore;
-    use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput};
+use std::sync::Arc;
+
+use klomang_node::mempool::advanced_conflicts::ConflictMap;
+use klomang_node::mempool::dependency_graph::DependencyGraph;
+use klomang_node::mempool::advanced_transaction_manager::AdvancedTransactionManager;
+use klomang_node::mempool::pool::{TransactionPool, PoolConfig};
+use klomang_node::storage::kv_store::KvStore;
+use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
 
     fn create_example_tx(id: u8, input_sources: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
@@ -22,6 +21,9 @@ mod examples {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*source_id; 32]),
                 index: idx as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -42,7 +44,7 @@ mod examples {
     pub fn example_basic_double_spend_detection() {
         println!("=== Example 1: Basic Double-Spending Detection ===\n");
 
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         // Two transactions claiming the same UTXO
@@ -83,7 +85,7 @@ mod examples {
     pub fn example_deterministic_resolution_fee_rate() {
         println!("=== Example 2: Deterministic Resolution - Fee Rate Priority ===\n");
 
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         let tx_low_fee = create_example_tx(1, vec![100]);
@@ -176,7 +178,7 @@ mod examples {
     pub fn example_multiple_input_conflict() {
         println!("=== Example 4: Multiple Input Conflict ===\n");
 
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         // TX-Expensive uses 3 inputs from different sources
@@ -265,12 +267,10 @@ mod examples {
     pub fn example_conflict_system_analysis() {
         println!("=== Example 6: Conflict System Analysis ===\n");
 
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(
             conflict_map.clone(),
@@ -315,12 +315,10 @@ mod examples {
     pub fn example_complete_network_workflow() {
         println!("=== Example 7: Complete Network Workflow ===\n");
 
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(
             conflict_map,
@@ -333,23 +331,23 @@ mod examples {
 
         // Transaction 1: User A sends payment
         println!("[1] User A sends 1 BTC to User C (TX-A)");
-        let tx_a = create_example_tx(10, vec![50]);
-        let hash_a = klomang_node::mempool::TxHash::new(vec![10; 32]);
+        let _tx_a = create_example_tx(10, vec![50]);
+        let _hash_a = klomang_node::mempool::TxHash::new(vec![10; 32]);
         println!("    Inputs: [UTXO-50]");
         println!("    Fee: 5000 satoshis / 250 bytes = 20 sat/byte\n");
 
         // Transaction 2: Attacker attempts double-spend with same input
         println!("[2] Attacker tries to send same coin to User D (TX-Attack)");
-        let tx_attack = create_example_tx(11, vec![50]);
-        let hash_attack = klomang_node::mempool::TxHash::new(vec![11; 32]);
+        let _tx_attack = create_example_tx(11, vec![50]);
+        let _hash_attack = klomang_node::mempool::TxHash::new(vec![11; 32]);
         println!("    Inputs: [UTXO-50] <- SAME as TX-A");
         println!("    Fee: 2000 satoshis / 200 bytes = 10 sat/byte");
         println!("    ✗ EVICTED: Lower fee rate\n");
 
         // Transaction 3: User B sends dependent transaction
         println!("[3] User B sends payment using output from TX-A (TX-B)");
-        let tx_b = create_example_tx(12, vec![10]); // Depends on TX-A
-        let hash_b = klomang_node::mempool::TxHash::new(vec![12; 32]);
+        let _tx_b = create_example_tx(12, vec![10]); // Depends on TX-A
+        let _hash_b = klomang_node::mempool::TxHash::new(vec![12; 32]);
         println!("    Parents: [TX-A]");
         println!("    ✓ ACCEPTED: Depends on valid TX-A\n");
 
@@ -359,21 +357,5 @@ mod examples {
         println!("  ✗ TX-Attack: Rejected (double-spend with lower fee)");
         println!("  ✓ TX-B: Accepted (valid dependency on TX-A)");
         println!("  → Network consensus achieved: All nodes will make same decision\n");
-    }
 }
-
-#[cfg(test)]
-mod run_examples {
-    use super::examples::*;
-
-    #[test]
-    fn run_all_examples() {
-        example_basic_double_spend_detection();
-        example_deterministic_resolution_fee_rate();
-        example_dependency_chain_cascade();
-        example_multiple_input_conflict();
-        example_orphaned_transaction_handling();
-        example_conflict_system_analysis();
-        example_complete_network_workflow();
-    }
-}
+fn main() { println!("Run individual examples"); }

@@ -18,6 +18,7 @@ use klomang_core::core::state::transaction::Transaction;
 use crate::storage::kv_store::KvStore;
 use super::status::TransactionStatus;
 use super::advanced_dependency_manager::TxDependencyManager;
+use super::selection::{DeterministicSelector, SelectionCriteria};
 use super::parallel_selection::{ParallelSelectionBuilder, FeeBalancer};
 use super::priority_scheduler::{PriorityScheduler, PrioritySchedulerConfig};
 use super::multi_dimensional_index::{MultiDimensionalIndex, IndexedTransaction};
@@ -129,6 +130,14 @@ impl PoolEntry {
             _ => false,
         }
     }
+}
+
+/// Selected transaction for block candidate
+#[derive(Clone, Debug)]
+pub struct SelectedTransaction {
+    pub transaction: Transaction,
+    pub total_fee: u64,
+    pub size_bytes: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -376,6 +385,8 @@ impl TransactionPool {
         // Initialize conflict ordering integration
         let conflict_config = ConflictOrderingIntegrationConfig::default();
         let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, kv_store.clone()));
+        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(kv_store.clone(), conflict_ordering_integration.clone()));
+        let fee_balancer = kv_store.as_ref().map(|kv| Arc::new(FeeBalancer::new(Arc::clone(kv))));
         
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
@@ -396,8 +407,8 @@ impl TransactionPool {
             fee_filter,
             admission_controller,
             conflict_ordering_integration,
-            parallel_selection_builder: Arc::new(ParallelSelectionBuilder::new(kv_store.clone())),
-            fee_balancer: kv_store.as_ref().map(|kv| Arc::new(FeeBalancer::new(Arc::clone(kv)))),
+            parallel_selection_builder: parallel_selection,
+            fee_balancer,
         };
 
         pool.load_persistent_min_fee_rate().ok();
@@ -609,6 +620,8 @@ impl TransactionPool {
         // Initialize conflict ordering integration
         let conflict_config = ConflictOrderingIntegrationConfig::default();
         let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, Some(kv_store.clone())));
+        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(Some(kv_store.clone()), conflict_ordering_integration.clone()));
+        let fee_balancer = Some(Arc::new(FeeBalancer::new(kv_store.clone())));
         
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
@@ -623,14 +636,14 @@ impl TransactionPool {
             orphan_linker: Arc::new(RecursiveOrphanLinker::new(orphan_manager, 10)),
             memory_limiter,
             resource_optimizer,
-            kv_store: Some(kv_store.clone()),
+            kv_store: Some(kv_store),
             validator: Some(validator),
             source_rate_buckets: DashMap::new(),
             fee_filter,
             admission_controller,
             conflict_ordering_integration,
-            parallel_selection_builder: Arc::new(ParallelSelectionBuilder::new(Some(kv_store.clone()))),
-            fee_balancer: Some(Arc::new(FeeBalancer::new(kv_store))),
+            parallel_selection_builder: parallel_selection,
+            fee_balancer,
         };
 
         pool.load_persistent_min_fee_rate().ok();
@@ -920,6 +933,10 @@ impl TransactionPool {
             // Log error but don't fail the operation
             eprintln!("Warning: Failed to persist transaction to disk: {}", e);
         }
+
+        // Finally, insert into the main pool
+        let entry = PoolEntry::new((*tx_arc).clone(), total_fee, size_bytes);
+        self.by_hash.write().insert(tx_hash, entry);
 
         Ok(())
     }
@@ -1601,6 +1618,18 @@ impl TransactionPool {
 
         Ok(())
     }
+
+    /// Select transactions using deterministic selector
+    pub fn select_with_selector(
+        &self,
+        selector: &DeterministicSelector,
+        max_count: usize,
+        _max_size: Option<usize>,
+    ) -> Result<Vec<SelectedTransaction>, String> {
+        let entries: Vec<PoolEntry> = self.by_hash.read().values().cloned().collect();
+        let criteria = SelectionCriteria::MaxCount(max_count); // Simplified
+        Ok(selector.select(entries, criteria))
+    }
 }
 
 // ============================================
@@ -1812,6 +1841,8 @@ pub struct PoolStats {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
+    use crate::storage::kv_store::KvStore;
+    use std::sync::Arc;
 
     fn create_test_transaction() -> Transaction {
         Transaction {
@@ -1827,18 +1858,27 @@ mod tests {
         }
     }
 
+    fn create_test_pool() -> TransactionPool {
+        let kv_store = Arc::new(KvStore::new_dummy());
+        TransactionPool::new_with_kv_store(PoolConfig::default(), Some(kv_store))
+    }
+
     #[test]
     fn test_add_transaction() {
-        let pool = TransactionPool::default();
+        let pool = create_test_pool();
         let tx = create_test_transaction();
 
-        assert!(pool.add_transaction(tx, 1000, 200).is_ok());
+        println!("Size before: {}", pool.size());
+        if let Err(e) = pool.add_transaction(tx, 1000, 200) {
+            panic!("Add transaction failed: {}", e);
+        }
+        println!("Size after: {}", pool.size());
         assert_eq!(pool.size(), 1);
     }
 
     #[test]
     fn test_get_transaction() {
-        let pool = TransactionPool::default();
+        let pool = create_test_pool();
         let tx = create_test_transaction();
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
@@ -1851,7 +1891,7 @@ mod tests {
 
     #[test]
     fn test_set_status() {
-        let pool = TransactionPool::default();
+        let pool = create_test_pool();
         let tx = create_test_transaction();
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
@@ -1866,7 +1906,8 @@ mod tests {
     fn test_pool_size_limit() {
         let mut config = PoolConfig::default();
         config.max_pool_size = 2;
-        let pool = TransactionPool::new(config);
+        let kv_store = Arc::new(KvStore::new_dummy());
+        let pool = TransactionPool::new_with_kv_store(config, Some(kv_store));
 
         let tx1 = create_test_transaction();
         let tx2 = Transaction {
@@ -1881,139 +1922,5 @@ mod tests {
         assert!(pool.add_transaction(tx1, 1000, 200).is_ok());
         assert!(pool.add_transaction(tx2, 1000, 200).is_ok());
         assert!(pool.add_transaction(tx3, 1000, 200).is_err()); // Should fail
-    }
-
-    // ============================================
-    // PERSISTENCE & RECOVERY METHODS
-    // ============================================
-
-    /// Save transaction to persistent storage asynchronously
-    pub fn save_to_disk(&self, tx: &Transaction) -> Result<(), String> {
-        if let Some(ref kv_store) = self.kv_store {
-            let tx_hash = tx.id.as_bytes().to_vec();
-            let mut tx_value = crate::storage::schema::TransactionValue::from(tx);
-            
-            // Add checksum for corruption detection
-            let checksum = self.calculate_checksum(tx);
-            // Store checksum in a way that can be verified later
-            // For simplicity, we'll modify the fee field to include checksum
-            // In production, we'd add a checksum field to TransactionValue
-            tx_value.fee = ((tx_value.fee as u128) << 64) as u64 | (checksum as u64);
-            
-            kv_store.put_mempool_transaction(tx_hash, tx_value);
-            Ok(())
-        } else {
-            // No persistent storage available
-            Ok(())
-        }
-    }
-
-    /// Remove transaction from persistent storage
-    pub fn remove_from_disk(&self, tx_hash: &[u8]) -> Result<(), String> {
-        if let Some(ref kv_store) = self.kv_store {
-            kv_store.remove_mempool_transaction(tx_hash);
-            Ok(())
-        } else {
-            // No persistent storage available
-            Ok(())
-        }
-    }
-
-    /// Load mempool state from persistent storage on startup
-    pub fn load_mempool_on_startup(&self) -> Result<(), String> {
-        // In a full implementation, we would:
-        // 1. Scan all transactions in RocksDB CF_MEMPOOL
-        // 2. Deserialize and validate each transaction
-        // 3. Check against blockchain state for reconciliation
-        // 4. Add valid transactions back to in-memory structures
-        
-        // For this implementation, we'll perform basic reconciliation
-        // and prepare the structures for loading
-        
-        // Clear existing in-memory state to ensure clean startup
-        {
-            let mut pool = self.by_hash.write();
-            pool.clear();
-        }
-        {
-            let mut orphans = self.orphans.write();
-            orphans.clear();
-        }
-        
-        // Reset all indexes
-        self.priority_scheduler.clear();
-        self.multi_dimensional_index.clear();
-        self.deterministic_ordering.clear();
-        self.memory_limiter.clear();
-        
-        // Perform state reconciliation with blockchain
-        self.reconcile_with_blockchain()?;
-        
-        // Note: Actual loading of persisted transactions would require
-        // scanning RocksDB CF_MEMPOOL. This would typically be done
-        // using RocksDB iterators on the mempool column family.
-        // For brevity, this implementation focuses on the reconciliation
-        // and cleanup aspects.
-        
-        Ok(())
-    }
-
-    /// Calculate simple checksum for transaction integrity
-    fn calculate_checksum(&self, tx: &Transaction) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        
-        let mut hasher = DefaultHasher::new();
-        tx.id.hash(&mut hasher);
-        tx.inputs.len().hash(&mut hasher);
-        tx.outputs.len().hash(&mut hasher);
-        tx.chain_id.hash(&mut hasher);
-        hasher.finish()
-    }
-
-    /// Perform state reconciliation with main storage
-    /// Removes transactions that are already in blocks
-    pub fn reconcile_with_blockchain(&self) -> Result<(), String> {
-        let Some(ref kv_store) = self.kv_store else {
-            return Ok(()); // No storage to reconcile with
-        };
-        // Note: In full implementation, we'd scan CF_MEMPOOL to get all persisted hashes
-        // For now, we'll check transactions that are currently in memory
-        
-        let tx_hashes: Vec<Vec<u8>> = {
-            let pool = self.by_hash.read();
-            pool.keys().cloned().collect()
-        };
-        
-        // Check each transaction against main blockchain storage
-        for tx_hash in tx_hashes {
-            // If transaction exists in main blockchain storage, it means it's already in a block
-            match kv_store.get_transaction(&tx_hash) {
-                Ok(Some(_)) => {
-                    // Transaction is already in a block, remove from persistent mempool
-                    let _ = self.remove_from_disk(&tx_hash);
-                    
-                    // Also remove from in-memory structures
-                    let mut pool = self.by_hash.write();
-                    pool.swap_remove(&tx_hash);
-                    
-                    // Remove from other indexes
-                    self.priority_scheduler.unregister_transaction(&tx_hash).ok();
-                    self.multi_dimensional_index.remove(&tx_hash).ok();
-                    self.deterministic_ordering.remove_transaction(&tx_hash).ok();
-                    self.memory_limiter.remove_tx_weight(&tx_hash).ok();
-                }
-                Ok(None) => {
-                    // Transaction not in blockchain, keep in mempool
-                }
-                Err(e) => {
-                    // Log error but continue
-                    eprintln!("Warning: Error checking transaction {} against blockchain: {}", 
-                             "[redacted]", e);
-                }
-            }
-        }
-        
-        Ok(())
     }
 }

@@ -123,7 +123,7 @@ impl TransactionValue {
 // UTXO STORAGE
 // ============================================
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UtxoValue {
     pub amount: u64,
     pub pubkey_hash: Vec<u8>,  // Hash as bytes for serialization

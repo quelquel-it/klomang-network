@@ -10,16 +10,13 @@
 
 #[cfg(test)]
 mod integration_tests {
-    use std::collections::VecDeque;
     use std::sync::Arc;
-    use std::sync::Mutex;
 
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput};
+    use klomang_core::core::state::transaction::{Transaction, SigHashType, TxInput};
 
     use crate::mempool::conflict_graph::ConflictGraph;
     use crate::mempool::rbf_manager::RBFManager;
-    use crate::mempool::pool::TransactionPool;
     use crate::storage::kv_store::KvStore;
 
     fn create_tx(id: u8, prev_ids: Vec<u8>) -> Transaction {
@@ -28,6 +25,9 @@ mod integration_tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*prev_id; 32]),
                 index: idx as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -47,7 +47,7 @@ mod integration_tests {
     #[test]
     fn test_conflict_detection_multiple_inputs() {
         // Two transactions spending the same input
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store.clone());
 
         // TX1 spends input from TX100
@@ -69,7 +69,7 @@ mod integration_tests {
 
     #[test]
     fn test_rbf_evaluation_fee_rate_higher() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
         let rbf = RBFManager::new(graph.clone());
 
@@ -105,7 +105,7 @@ mod integration_tests {
 
     #[test]
     fn test_rbf_evaluation_insufficient_fee() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
         let rbf = RBFManager::new(graph.clone());
 
@@ -133,7 +133,7 @@ mod integration_tests {
 
     #[test]
     fn test_rbf_deterministic_tiebreaker() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
         let rbf = RBFManager::new(graph.clone());
 
@@ -180,7 +180,7 @@ mod integration_tests {
 
     #[test]
     fn test_cascade_removal_with_descendants() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store.clone());
 
         // Create transaction chain:
@@ -218,7 +218,7 @@ mod integration_tests {
 
     #[test]
     fn test_transitive_conflict_detection() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store.clone());
 
         // Create conflict set:
@@ -255,7 +255,7 @@ mod integration_tests {
 
     #[test]
     fn test_rbf_statistics_tracking() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
         let rbf = RBFManager::new(graph.clone());
 
@@ -281,7 +281,7 @@ mod integration_tests {
 
     #[test]
     fn test_conflict_graph_stats_accumulation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = ConflictGraph::new(kv_store.clone());
 
         let tx1 = create_tx(1, vec![100]);
@@ -305,7 +305,7 @@ mod integration_tests {
 
     #[test]
     fn test_multiple_concurrent_conflicts() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
 
         // Create 5 transactions all spending the same input

@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod conflict_ordering_integration_tests {
     use klomang_node::mempool::pool::{TransactionPool, PoolConfig};
-    use klomang_core::core::state::transaction::{Transaction, TransactionInput, TransactionOutput};
+    use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
     use klomang_core::core::crypto::Hash;
 
     /// Create a dummy transaction for testing
@@ -19,16 +19,16 @@ mod conflict_ordering_integration_tests {
         
         let mut tx_inputs = Vec::new();
         for i in 0..inputs {
-            tx_inputs.push(TransactionInput {
+            tx_inputs.push(TxInput {
                 prev_tx: Hash::new(&[i as u8; 32]),
                 index: 0,
-                pubkey: vec![id],
                 signature: vec![id, i as u8],
-                witness_data: None,
+                pubkey: vec![id],
+                sighash_type: SigHashType::All,
             });
         }
 
-        let tx_outputs = vec![TransactionOutput::default(); outputs];
+        let tx_outputs = vec![TxOutput { value: 0, pubkey_hash: Hash::new(&[]) }; outputs];
 
         Transaction {
             id: tx_id,
@@ -37,8 +37,9 @@ mod conflict_ordering_integration_tests {
             execution_payload: vec![],
             contract_address: None,
             gas_limit: 0,
-            max_fee_per_gas: 100 + (id as u64),
+            max_fee_per_gas: 100u128 + (id as u128),
             chain_id: 1,
+            locktime: 0,
         }
     }
 
@@ -54,7 +55,7 @@ mod conflict_ordering_integration_tests {
         pool.add_transaction(tx1.clone(), 500, 100).expect("Should add tx1");
 
         // Add second transaction with higher fee - should replace tx1
-        let result = pool.add_transaction(tx2, 1000, 100);
+        let result = pool.add_transaction(tx2.clone(), 1000, 100);
         assert!(result.is_ok(), "Should accept tx2 with higher fee");
 
         // Verify tx1 is no longer in pool
@@ -179,7 +180,7 @@ mod conflict_ordering_integration_tests {
         let pool = TransactionPool::new(PoolConfig::default());
 
         // Create multiple conflicting transactions
-        let base_index = 100;
+        let _base_index = 100;
         let mut tx_hashes = Vec::new();
 
         // Add first transaction (lowest fee)

@@ -108,7 +108,7 @@ mod tests {
     use klomang_core::core::state::transaction::{TxInput, TxOutput, SigHashType};
 
     fn create_validator_with_storage(kv_store: Arc<KvStore>) -> PoolValidator {
-        PoolValidator::new(kv_store)
+        PoolValidator::new(Some(kv_store))
     }
 
     fn create_test_transaction_with_inputs() -> Transaction {
@@ -174,13 +174,13 @@ mod tests {
     #[test]
     fn test_required_utxos() {
         let validator = PoolValidator {
-            kv_store: Arc::new(KvStore::new(
+            kv_store: Some(Arc::new(KvStore::new(
                 Arc::new(
                     crate::storage::cache::StorageCacheLayer::new(
                         crate::storage::db::StorageDb::new("./.test_utxos").unwrap()
                     )
                 )
-            )),
+            ))),
         };
 
         let tx = create_test_transaction_with_inputs();

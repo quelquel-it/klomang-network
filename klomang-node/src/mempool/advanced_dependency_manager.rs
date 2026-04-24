@@ -478,8 +478,6 @@ impl TxDependencyManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Note: Real tests would require KvStore mock or integration test setup
     // For now, this serves as structural verification
     

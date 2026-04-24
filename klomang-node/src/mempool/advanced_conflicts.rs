@@ -9,7 +9,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::Transaction;
+use klomang_core::core::state::transaction::{Transaction, SigHashType};
 
 use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
@@ -410,6 +410,9 @@ mod tests {
             tx_inputs.push(TxInput {
                 prev_tx: Hash::new(&[(id as u8).wrapping_add(i as u8); 32]),
                 index: i as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -428,14 +431,14 @@ mod tests {
 
     #[test]
     fn test_conflict_map_creation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
         assert!(map.is_empty());
     }
 
     #[test]
     fn test_register_transaction_no_conflict() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
 
         let tx = create_test_tx(1, 1);
@@ -448,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_direct_conflict_detection() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
 
         let tx1 = create_test_tx(1, 1);
@@ -474,7 +477,7 @@ mod tests {
 
     #[test]
     fn test_deterministic_resolution_fee_rate() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
 
         let tx_a = create_test_tx(1, 1);
@@ -501,7 +504,7 @@ mod tests {
 
     #[test]
     fn test_remove_transaction() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
 
         let tx = create_test_tx(1, 2);
@@ -517,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_conflicted_outpoints() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let map = ConflictMap::new(kv_store);
 
         let tx1 = create_test_tx(1, 1);

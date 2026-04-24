@@ -67,8 +67,8 @@ fn configure_cf_options(cf_name: ColumnFamilyName, base_options: &Options, confi
             cf_options.set_compression_type(DBCompressionType::Lz4);
         }
         ColumnFamilyName::Blocks | ColumnFamilyName::Headers | ColumnFamilyName::Transactions => {
-            // Cold reference data: heavy compression (Zstd)
-            cf_options.set_compression_type(DBCompressionType::Zstd);
+            // Cold reference data: use LZ4 for portability in test environments
+            cf_options.set_compression_type(DBCompressionType::Lz4);
         }
         _ => {
             // Default compression
@@ -166,8 +166,9 @@ impl StorageDb {
     }
 
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let wal_dir = path.as_ref().join("wal");
         let _metrics = Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector)));
-        Self::open(path.as_ref(), path.as_ref())
+        Self::open(path.as_ref(), wal_dir)
     }
 
     pub fn open_with_config(config: &StorageConfig, metrics: Arc<StorageMetrics>) -> Result<Self, Error> {

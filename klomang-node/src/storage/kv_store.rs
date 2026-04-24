@@ -3,18 +3,40 @@ use std::sync::Arc;
 
 use crate::storage::cf::ColumnFamilyName;
 use crate::storage::cache::StorageCacheLayer;
-use crate::storage::schema::*;
+use crate::storage::config::StorageConfig;
+use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::atomic_write::{AtomicBlockWriter, BlockTransactionBatch};
+use crate::storage::metrics::StorageMetrics;
+use crate::storage::schema::{BlockValue, HeaderValue, TransactionValue, UtxoValue, UtxoSpentValue, VerkleStateValue, DagNodeValue, DagTipsValue};
+use klomang_core::NoOpMetricsCollector;
+use tempfile::TempDir;
 
 /// Strongly-typed key-value store operations for Klomang blockchain storage
 pub struct KvStore {
     cache_layer: Arc<StorageCacheLayer>,
+    _temp_dir: Option<TempDir>,
 }
 
 impl KvStore {
     pub fn new(cache_layer: Arc<StorageCacheLayer>) -> Self {
-        Self { cache_layer }
+        Self { cache_layer, _temp_dir: None }
+    }
+
+    pub fn new_dummy() -> Self {
+        let temp_dir = TempDir::new().expect("Failed to create dummy KvStore temp dir");
+        let db_path = temp_dir.path().join("kvstore_db");
+        let wal_path = temp_dir.path().join("kvstore_wal");
+        let config = StorageConfig::new(&db_path).with_wal_dir(&wal_path);
+        let metrics = Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector)));
+        let db = StorageDb::open_with_config(&config, metrics)
+            .expect("Failed to create dummy KvStore storage");
+        let cache_layer = Arc::new(StorageCacheLayer::new(db));
+
+        Self {
+            cache_layer,
+            _temp_dir: Some(temp_dir),
+        }
     }
 
     // ============================

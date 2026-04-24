@@ -8,7 +8,7 @@
 //! - Managing memory with eviction
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput};
+use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
 use std::sync::Arc;
 
 use klomang_node::mempool::{
@@ -21,11 +21,7 @@ pub fn example_basic_pool_operations() -> Result<(), Box<dyn std::error::Error>>
     println!("=== Basic Transaction Pool Operations ===\n");
 
     // Create pool with custom configuration
-    let config = PoolConfig {
-        max_pool_size: 100,
-        orphan_ttl_seconds: 600,
-        rejected_ttl_seconds: 3600,
-    };
+    let config = PoolConfig::default();
     let pool = Arc::new(TransactionPool::new(config));
 
     // Create and add a transaction
@@ -34,10 +30,13 @@ pub fn example_basic_pool_operations() -> Result<(), Box<dyn std::error::Error>>
         inputs: vec![TxInput {
             prev_tx: Hash::new(&[0u8; 32]),
             index: 0,
+            signature: vec![0; 64],
+            pubkey: vec![0; 33],
+            sighash_type: SigHashType::All,
         }],
         outputs: vec![TxOutput {
-            amount: 100,
-            script: vec![0x51],
+            value: 100,
+            pubkey_hash: Hash::new(&[0x51; 32]),
         }],
         execution_payload: vec![],
         contract_address: None,
@@ -86,7 +85,7 @@ pub fn example_deterministic_selection() -> Result<(), Box<dyn std::error::Error
 
     // Select using HighestFee strategy (default)
     let selector_fee = DeterministicSelector::new(SelectionStrategy::HighestFee);
-    let selected_fee = selector_fee.select_transactions(&pool, 3, None)?;
+    let selected_fee = pool.select_with_selector(&selector_fee, 3, None)?;
     println!("HighestFee selection (selecting 3 of 5):");
     for (idx, entry) in selected_fee.iter().enumerate() {
         println!("  {} - Fee: {}, Size: {} bytes", idx + 1, entry.total_fee, entry.size_bytes);
@@ -95,7 +94,7 @@ pub fn example_deterministic_selection() -> Result<(), Box<dyn std::error::Error
 
     // Select using FIFO strategy
     let selector_fifo = DeterministicSelector::new(SelectionStrategy::FIFO);
-    let selected_fifo = selector_fifo.select_transactions(&pool, 3, None)?;
+    let selected_fifo = pool.select_with_selector(&selector_fifo, 3, None)?;
     println!("FIFO selection (selecting 3 of 5):");
     for (idx, entry) in selected_fifo.iter().enumerate() {
         println!("  {} - Fee: {}, Size: {} bytes", idx + 1, entry.total_fee, entry.size_bytes);
@@ -115,7 +114,7 @@ pub fn example_memory_eviction() -> Result<(), Box<dyn std::error::Error>> {
     println!("Adding 50 transactions to pool...");
     for i in 1..=50 {
         let tx = Transaction {
-            id: Hash::new(&[(i as u8) % 256; 32]),
+            id: Hash::new(&[(i % 256) as u8; 32]),
             inputs: vec![],
             outputs: vec![],
             execution_payload: vec![],
@@ -182,17 +181,17 @@ pub fn example_transaction_lifecycle() -> Result<(), Box<dyn std::error::Error>>
 
     // Add transaction
     pool.add_transaction(tx, 500, 250)?;
-    let entry = pool.get_by_hash(&tx_hash).unwrap();
+    let entry = pool.get(&tx_hash).unwrap();
     println!("1. Transaction created - Status: {:?}", entry.status);
 
     // Transition to Validated
     pool.set_status(&tx_hash, TransactionStatus::Validated)?;
-    let entry = pool.get_by_hash(&tx_hash).unwrap();
+    let entry = pool.get(&tx_hash).unwrap();
     println!("2. After validation - Status: {:?}", entry.status);
 
     // Transition to InBlock
     pool.set_status(&tx_hash, TransactionStatus::InBlock)?;
-    let entry = pool.get_by_hash(&tx_hash).unwrap();
+    let entry = pool.get(&tx_hash).unwrap();
     println!("3. After block inclusion - Status: {:?}\n", entry.status);
 
     Ok(())

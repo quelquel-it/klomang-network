@@ -382,11 +382,26 @@ impl Drop for UtxoOwnershipManager {
     }
 }
 
+impl std::fmt::Display for OwnershipError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OwnershipError::Conflict(e) => write!(f, "UTXO conflict: {}", e),
+            OwnershipError::Storage(s) => write!(f, "Storage error: {}", s),
+            OwnershipError::PoolError(s) => write!(f, "Pool error: {}", s),
+            OwnershipError::InvalidTransaction(s) => write!(f, "Invalid transaction: {}", s),
+            OwnershipError::RbfFailed(s) => write!(f, "RBF failed: {}", s),
+        }
+    }
+}
+
+impl std::error::Error for OwnershipError {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mempool::pool::PoolConfig;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::TxInput;
+    use klomang_core::core::state::transaction::{SigHashType, TxInput};
 
     fn create_test_tx(id: u8, input_count: usize) -> Transaction {
         let mut inputs = Vec::new();
@@ -394,6 +409,9 @@ mod tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[(id as u8).wrapping_add(i as u8); 32]),
                 index: i as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -412,8 +430,8 @@ mod tests {
 
     #[test]
     fn test_manager_creation() {
-        let pool = Arc::new(TransactionPool::default());
-        let kv_store = Arc::new(KvStore::new_test());
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
+        let kv_store = Arc::new(KvStore::new_dummy());
         let manager = UtxoOwnershipManager::new(pool, kv_store);
 
         assert_eq!(manager.tracker().active_claims_count(), 0);
@@ -421,8 +439,8 @@ mod tests {
 
     #[test]
     fn test_add_transaction_with_ownership() {
-        let pool = Arc::new(TransactionPool::default());
-        let kv_store = Arc::new(KvStore::new_test());
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
+        let kv_store = Arc::new(KvStore::new_dummy());
         let manager = UtxoOwnershipManager::new(pool, kv_store);
 
         let tx = create_test_tx(1, 1);
@@ -436,8 +454,8 @@ mod tests {
 
     #[test]
     fn test_remove_transaction() {
-        let pool = Arc::new(TransactionPool::default());
-        let kv_store = Arc::new(KvStore::new_test());
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
+        let kv_store = Arc::new(KvStore::new_dummy());
         let manager = UtxoOwnershipManager::new(pool, kv_store);
 
         let tx = create_test_tx(1, 1);
@@ -453,8 +471,8 @@ mod tests {
 
     #[test]
     fn test_conflict_analysis() {
-        let pool = Arc::new(TransactionPool::default());
-        let kv_store = Arc::new(KvStore::new_test());
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
+        let kv_store = Arc::new(KvStore::new_dummy());
         let manager = UtxoOwnershipManager::new(pool, kv_store);
 
         let tx1 = create_test_tx(1, 2);

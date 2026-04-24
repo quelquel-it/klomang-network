@@ -250,6 +250,7 @@ mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
     use klomang_core::core::state::transaction::{TxInput, TxOutput};
+    use num_cpus;
 
     fn create_test_entry() -> SubPoolEntry {
         SubPoolEntry {

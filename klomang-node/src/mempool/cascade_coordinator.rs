@@ -220,8 +220,6 @@ pub trait CascadeEventHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_cascade_coordinator_creation() {
         // This is a placeholder test to ensure the module compiles

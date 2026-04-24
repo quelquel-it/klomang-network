@@ -494,8 +494,12 @@ mod tests {
             id: klomang_core::core::crypto::Hash::new(&[1, 2, 3, 4]),
             inputs: vec![],
             outputs: vec![],
-            lock_time: 0,
-            version: 1,
+            execution_payload: vec![],
+            contract_address: None,
+            gas_limit: 0,
+            max_fee_per_gas: 0,
+            chain_id: 1,
+            locktime: 0,
         })
     }
 

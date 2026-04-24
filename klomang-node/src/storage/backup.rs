@@ -321,7 +321,7 @@ mod tests {
     use klomang_core::core::crypto::Hash;
     use klomang_core::core::state::storage::MemoryStorage;
     use klomang_core::core::state::v_trie::VerkleTree;
-    use klomang_core::core::StateManager;
+    use klomang_core::core::state_manager::StateManager;
 
     use crate::storage::db::StorageDb;
     use crate::storage::concurrency::StorageEngine;
@@ -337,16 +337,16 @@ mod tests {
         // Create StateManager
         let mem_storage = MemoryStorage::new();
         let tree = VerkleTree::new(mem_storage).expect("Failed to create VerkleTree");
-    let state_manager = StateManager::new(tree).expect("Failed to create StateManager");
+        let mut state_manager = StateManager::new(tree).expect("Failed to create StateManager");
         let block_value = BlockValue {
-            hash: Hash([1u8; 32]).0.to_vec(),
+            hash: Hash::from_bytes(&[1u8; 32]).as_bytes().to_vec(),
             header_bytes: vec![1, 2, 3],
             transactions: vec![vec![4, 5, 6]],
             timestamp: 1000,
         };
         storage.writer.enqueue(vec![crate::storage::concurrency::StorageWriteCommand::Put {
             cf: ColumnFamilyName::Blocks,
-            key: Hash([1u8; 32]).0.to_vec(),
+            key: Hash::from_bytes(&[1u8; 32]).as_bytes().to_vec(),
             value: block_value.to_bytes().unwrap(),
         }]);
 
@@ -357,6 +357,9 @@ mod tests {
         let metadata = snapshot.metadata();
         assert_eq!(metadata.total_blocks, 1);
         assert!(metadata.timestamp > 0);
+        drop(snapshot);
+
+        (temp_dir, storage, state_manager)
     }
 
     #[test]
@@ -367,7 +370,7 @@ mod tests {
         let (_temp_dir, storage, mut state_manager) = create_test_setup();
 
         // Create backup engine
-        let backup_engine = DatabaseBackupEngine::new(&backup_dir, 3).unwrap();
+        let mut backup_engine = DatabaseBackupEngine::new(&backup_dir, 3).unwrap();
 
         // Create snapshot
         let snapshot = DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
@@ -397,20 +400,20 @@ mod tests {
         let (_temp_dir, storage, mut state_manager) = create_test_setup();
 
         // Create backup engine with max 2 backups
-        let backup_engine = DatabaseBackupEngine::new(&backup_dir, 2).unwrap();
+        let mut backup_engine = DatabaseBackupEngine::new(&backup_dir, 2).unwrap();
 
         // Create multiple backups
         for i in 0..4 {
             // Add some data variation
             let block_value = BlockValue {
-                hash: Hash([i as u8; 32]).0.to_vec(),
+                hash: Hash::from_bytes(&[i as u8; 32]).as_bytes().to_vec(),
                 header_bytes: vec![i as u8, 2, 3],
                 transactions: vec![vec![4, 5, i as u8]],
                 timestamp: 1000 + i as u64,
             };
             storage.writer.enqueue(vec![crate::storage::concurrency::StorageWriteCommand::Put {
                 cf: ColumnFamilyName::Blocks,
-                key: Hash([i as u8; 32]).0.to_vec(),
+                key: Hash::from_bytes(&[i as u8; 32]).as_bytes().to_vec(),
                 value: block_value.to_bytes().unwrap(),
             }]);
 
@@ -473,7 +476,7 @@ mod tests {
     fn test_state_manager_interface() {
         let mem_storage = MemoryStorage::new();
         let tree = VerkleTree::new(mem_storage).expect("Failed to create VerkleTree");
-        let state_manager = StateManager::new(tree).expect("Failed to create StateManager");
+        let mut state_manager = StateManager::new(tree).expect("Failed to create StateManager");
 
         // Test interface methods
         let _state_root = state_manager.get_current_state_root();

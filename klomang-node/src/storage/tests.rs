@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
     use tempfile::TempDir;
     use bincode;
 
+    use klomang_core::NoOpMetricsCollector;
     use klomang_core::core::crypto::Hash;
     use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput};
     use klomang_core::core::dag::{BlockHeader, BlockNode};
@@ -12,8 +12,9 @@ mod tests {
     use crate::storage::batch::WriteBatch;
     use crate::storage::cf::ColumnFamilyName;
     use crate::storage::db::StorageDb;
+    use crate::storage::config::StorageConfig;
     use crate::storage::schema::{
-        BlockValue, HeaderValue, TransactionValue, TransactionInput, TransactionOutput,
+        BlockValue, TransactionValue, TransactionInput, TransactionOutput,
         UtxoValue, make_utxo_key, parse_utxo_key,
     };
 
@@ -29,8 +30,11 @@ mod tests {
     /// Create isolated test database with unique tempdir
     fn create_test_db() -> (TempDir, StorageDb) {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        let db_path = temp_dir.path().join("test.db");
-        let db = StorageDb::new(&db_path).expect("Failed to create test database");
+        let db_path = temp_dir.path().join("testdb");
+        let wal_path = temp_dir.path().join("testdb_wal");
+        let config = StorageConfig::new(&db_path).with_wal_dir(&wal_path);
+        let metrics = Arc::new(crate::storage::metrics::StorageMetrics::new(Box::new(NoOpMetricsCollector)));
+        let db = StorageDb::open_with_config(&config, metrics).expect("Failed to create test database");
         (temp_dir, db)
     }
 
@@ -165,8 +169,8 @@ mod tests {
         let key2 = b"key2".to_vec();
         let value2 = b"value2".to_vec();
 
-        batch.put(ColumnFamilyName::Transactions, &key1, &value1);
-        batch.put(ColumnFamilyName::Transactions, &key2, &value2);
+        batch.put_cf_typed(ColumnFamilyName::Transactions, &key1, &value1);
+        batch.put_cf_typed(ColumnFamilyName::Transactions, &key2, &value2);
 
         // Execute batch
         db.write_batch(batch).expect("Failed to write batch");
@@ -417,7 +421,7 @@ mod tests {
             .expect("Failed to put initial value");
 
         // Create snapshot
-        let snapshot = db.snapshot();
+        let _snapshot = db.snapshot();
 
         // Modify value
         db.put(ColumnFamilyName::Transactions, &key, &value2)
@@ -451,7 +455,7 @@ mod tests {
         assert_eq!(db_arc1.as_ref() as *const _, db_arc2.as_ref() as *const _);
 
         let key = b"test_key".to_vec();
-        let value = b"test_value".to_vec();
+        let _value = b"test_value".to_vec();
 
         // Use Arc in a thread-like scenario
         db_arc1.get_cf(

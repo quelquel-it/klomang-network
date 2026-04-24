@@ -41,6 +41,22 @@ pub enum UtxoConflictError {
     StorageError(String),
 }
 
+impl std::fmt::Display for UtxoConflictError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UtxoConflictError::UtxoAlreadyClaimed { outpoint, current_fee, new_fee, .. } =>
+                write!(f, "UTXO {} claimed with fees {} vs {}", outpoint, current_fee, new_fee),
+            UtxoConflictError::UtxoNotFound(s) => write!(f, "UTXO not found: {}", s),
+            UtxoConflictError::UtxoAlreadySpent(s) => write!(f, "UTXO already spent: {}", s),
+            UtxoConflictError::TransactionNotTracked(_) => write!(f, "Transaction not tracked"),
+            UtxoConflictError::InvalidInput(s) => write!(f, "Invalid input: {}", s),
+            UtxoConflictError::StorageError(s) => write!(f, "Storage error: {}", s),
+        }
+    }
+}
+
+impl std::error::Error for UtxoConflictError {}
+
 /// Represents an outpoint (transaction hash + output index)
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct OutPoint {
@@ -343,11 +359,15 @@ impl Drop for UtxoTracker {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::SigHashType;
 
     fn create_test_input(tx_hash: u8, index: u32) -> TxInput {
         TxInput {
             prev_tx: Hash::new(&[tx_hash; 32]),
             index,
+            signature: vec![],
+            pubkey: vec![],
+            sighash_type: SigHashType::All,
         }
     }
 
@@ -379,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_register_single_claim() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let tracker = UtxoTracker::new(kv_store);
 
         let tx = create_test_transaction(1, 1);
@@ -392,11 +412,11 @@ mod tests {
 
     #[test]
     fn test_conflict_detection() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let tracker = UtxoTracker::new(kv_store);
 
         let tx1 = create_test_transaction(1, 1);
-        let tx2 = create_test_transaction(2, 1);
+        let _tx2 = create_test_transaction(2, 1);
 
         // Register first transaction
         assert!(tracker.register_claims(&tx1, 1000).is_ok());
@@ -410,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_release_claims() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let tracker = UtxoTracker::new(kv_store);
 
         let tx = create_test_transaction(1, 2);
@@ -425,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_statistics_tracking() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let tracker = UtxoTracker::new(kv_store);
 
         let tx1 = create_test_transaction(1, 2);
@@ -441,7 +461,7 @@ mod tests {
 
     #[test]
     fn test_is_claimed_check() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let tracker = UtxoTracker::new(kv_store);
 
         let tx = create_test_transaction(1, 1);

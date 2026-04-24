@@ -3,15 +3,15 @@
 #[cfg(test)]
 mod advanced_conflict_tests {
     use std::sync::Arc;
-    use std::collections::VecDeque;
 
-    use crate::mempool::advanced_conflicts::{ConflictMap, TxHash, ConflictType, ResolutionReason};
-    use crate::mempool::dependency_graph::DependencyGraph;
-    use crate::mempool::advanced_transaction_manager::{AdvancedTransactionManager, ManagerError};
-    use crate::mempool::pool::TransactionPool;
-    use crate::storage::kv_store::KvStore;
+    use klomang_node::mempool::advanced_conflicts::{ConflictMap, TxHash, ConflictType, ResolutionReason};
+    use klomang_node::mempool::dependency_graph::DependencyGraph;
+    use klomang_node::mempool::advanced_transaction_manager::AdvancedTransactionManager;
+    use klomang_node::mempool::pool::TransactionPool;
+    use klomang_node::mempool::PoolConfig;
+    use klomang_node::storage::kv_store::KvStore;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput};
+    use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
 
     fn create_test_tx(id: u8, prev_txs: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
@@ -19,6 +19,9 @@ mod advanced_conflict_tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*prev_tx_id; 32]),
                 index: idx as u32,
+                signature: vec![0; 64],
+                pubkey: vec![0; 33],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -42,7 +45,7 @@ mod advanced_conflict_tests {
     #[test]
     fn test_triple_conflict_detection_and_resolution() {
         // Scenario: Three transactions all claiming same UTXO
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store.clone()));
 
         // TX-A: 1000 fee / 100 bytes = 10 sat/byte
@@ -82,7 +85,7 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_timestamp_based_resolution() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         // Two transactions with identical fee rates
@@ -107,7 +110,7 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_lexicographical_hash_resolution() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         // Create hashes where one is lexicographically smaller
@@ -184,7 +187,7 @@ mod advanced_conflict_tests {
         // Mark TX-A as conflict
         let affected = graph.mark_conflict(&tx_a, "Root conflict".to_string());
         assert!(affected.is_ok());
-        let affected_list = affected.unwrap();
+        let _affected_list = affected.unwrap();
 
         // All should be in same partition
         let partition_a = graph.get_partition(&tx_a);
@@ -199,7 +202,7 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_complex_multi_input_conflict_scenario() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         // TX-A uses inputs from UTXO-1, UTXO-2, UTXO-3
@@ -226,7 +229,7 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_conflict_map_remove_and_reuse() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store));
 
         let tx_a = create_test_tx(1, vec![100]);
@@ -300,12 +303,10 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_advanced_manager_conflict_analysis() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(
             conflict_map.clone(),
@@ -332,12 +333,10 @@ mod advanced_conflict_tests {
 
     #[test]
     fn test_conflict_status_tracking() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let conflict_map = Arc::new(ConflictMap::new(kv_store.clone()));
         let graph = Arc::new(DependencyGraph::new());
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(
             conflict_map,

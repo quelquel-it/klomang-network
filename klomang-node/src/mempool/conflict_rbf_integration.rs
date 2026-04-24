@@ -10,8 +10,8 @@ use klomang_core::core::state::transaction::Transaction;
 use crate::storage::kv_store::KvStore;
 
 use super::conflict_graph::{ConflictGraph, TxHash};
-use super::rbf_manager::{RBFManager, RBFChoice};
 use super::pool::TransactionPool;
+use super::rbf_manager::{RBFManager, RBFChoice};
 
 /// Result type for integration operations
 pub type IntegrationResult<T> = Result<T, IntegrationError>;
@@ -304,9 +304,9 @@ fn format_hash(tx_hash: &TxHash) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::VecDeque;
-    use klomang_core::core::state::transaction::TxInput;
+    use crate::mempool::pool::PoolConfig;
     use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::{SigHashType, TxInput};
 
     fn create_test_tx(id: u8, prev_ids: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
@@ -314,6 +314,9 @@ mod tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*prev_id; 32]),
                 index: idx as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -332,22 +335,18 @@ mod tests {
 
     #[test]
     fn test_integration_manager_creation() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let _manager = ConflictRBFManager::new(graph, pool, kv_store);
     }
 
     #[test]
     fn test_add_transaction_no_conflict() {
-        let kv_store = Arc::new(KvStore::new_test());
+        let kv_store = Arc::new(KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store.clone()));
-        let pool = Arc::new(TransactionPool::new(
-            Arc::new(std::sync::Mutex::new(VecDeque::new())),
-        ));
+        let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = ConflictRBFManager::new(graph, pool, kv_store);
 

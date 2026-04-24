@@ -269,6 +269,174 @@ impl Drop for EvictionEngine {
     }
 }
 
+/// Transaction Aging & Decay System
+///
+/// Manages relevance scores with exponential decay over time
+/// to prioritize fresh, competitive transactions.
+pub struct AgingProcessor {
+    /// Decay rate per hour (e.g., 0.1 for 10% decay per hour)
+    decay_rate_per_hour: f64,
+    /// Anti-starvation threshold (hours before promotion)
+    anti_starvation_hours: u64,
+}
+
+impl AgingProcessor {
+    /// Create new aging processor
+    pub fn new(decay_rate_per_hour: f64, anti_starvation_hours: u64) -> Self {
+        Self {
+            decay_rate_per_hour,
+            anti_starvation_hours,
+        }
+    }
+
+    /// Calculate decayed relevance score for a transaction
+    ///
+    /// Score starts at 1.0 and decays exponentially after 24 hours.
+    /// Anti-starvation prevents score from dropping below minimum for old transactions.
+    pub fn calculate_relevance_score(&self, entry_time_ms: u64, current_time_ms: u64, base_fee_rate: u64) -> f64 {
+        let age_hours = (current_time_ms.saturating_sub(entry_time_ms)) as f64 / (1000.0 * 3600.0);
+
+        // No decay for first 24 hours
+        if age_hours <= 24.0 {
+            return 1.0;
+        }
+
+        // Exponential decay after 24 hours
+        let decay_factor = (-self.decay_rate_per_hour * (age_hours - 24.0)).exp();
+
+        // Anti-starvation: minimum score for very old transactions
+        let min_score = if age_hours >= self.anti_starvation_hours as f64 {
+            0.1 // Minimum relevance to prevent complete starvation
+        } else {
+            0.0
+        };
+
+        // Boost score slightly based on fee rate (higher fee = slower decay)
+        let fee_boost = (base_fee_rate as f64 / 1000.0).min(0.5);
+
+        (decay_factor + fee_boost).max(min_score)
+    }
+
+    /// Get transactions eligible for priority adjustment due to aging
+    pub fn get_aging_adjustments(&self, pool_entries: &[PoolEntry], current_time_ms: u64) -> Vec<(Vec<u8>, f64)> {
+        pool_entries
+            .iter()
+            .map(|entry| {
+                let tx_hash = bincode::serialize(&entry.transaction.id)
+                    .unwrap_or_default();
+                let fee_rate = if entry.size_bytes > 0 {
+                    entry.total_fee / entry.size_bytes as u64
+                } else {
+                    0
+                };
+                let score = self.calculate_relevance_score(entry.arrival_time * 1000, current_time_ms, fee_rate);
+                (tx_hash, score)
+            })
+            .collect()
+    }
+}
+
+/// Predictive Eviction Engine
+///
+/// Uses historical data to predict and evict transactions unlikely to be mined.
+pub struct EvictionPredictor {
+    /// KvStore for historical data
+    _kv_store: Arc<crate::storage::KvStore>,
+    /// Historical average fee rate (updated periodically)
+    historical_avg_fee: std::sync::RwLock<u64>,
+    /// Number of blocks to analyze for historical average
+    history_blocks: usize,
+}
+
+impl EvictionPredictor {
+    /// Create new eviction predictor
+    pub fn new(_kv_store: Arc<crate::storage::KvStore>, history_blocks: usize) -> Self {
+        Self {
+            _kv_store,
+            historical_avg_fee: std::sync::RwLock::new(100), // Default
+            history_blocks,
+        }
+    }
+
+    /// Update historical average fee from recent blocks
+    pub fn update_historical_avg(&self) -> Result<(), String> {
+        let avg_fee = self.calculate_historical_avg_fee()?;
+        let mut guard = self.historical_avg_fee.write()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        *guard = avg_fee;
+        Ok(())
+    }
+
+    /// Calculate historical average fee from last N blocks
+    fn calculate_historical_avg_fee(&self) -> Result<u64, String> {
+        let mut total_fee = 0u64;
+        let mut block_count = 0usize;
+
+        // Simulate getting recent block hashes (last history_blocks)
+        for i in 0..self.history_blocks {
+            let block_fee = self.get_block_total_fee(i)?;
+            total_fee = total_fee.saturating_add(block_fee);
+            block_count += 1;
+        }
+
+        if block_count == 0 {
+            return Ok(1); // Minimum fee
+        }
+
+        Ok(total_fee / block_count as u64)
+    }
+
+    /// Get total fee for a block (sum of transaction fees)
+    fn get_block_total_fee(&self, block_index: usize) -> Result<u64, String> {
+        // Placeholder: simulate block fee calculation
+        Ok(1000 + (block_index as u64 * 50)) // Simulated increasing fees
+    }
+
+    /// Predict transactions to evict based on fee threshold and pool capacity
+    pub fn predict_evictions(
+        &self,
+        pool_entries: &[PoolEntry],
+        current_pool_size: usize,
+        max_pool_size: usize,
+    ) -> Vec<Vec<u8>> {
+        let historical_avg = {
+            let guard = self.historical_avg_fee.read().unwrap();
+            *guard
+        };
+
+        let threshold_fee = (historical_avg as f64 * 0.5) as u64; // 50% of historical avg
+        let capacity_ratio = current_pool_size as f64 / max_pool_size as f64;
+
+        // Only evict if pool is > 90% capacity
+        if capacity_ratio <= 0.9 {
+            return Vec::new();
+        }
+
+        pool_entries
+            .iter()
+            .filter_map(|entry| {
+                let fee_rate = if entry.size_bytes > 0 {
+                    entry.total_fee / entry.size_bytes as u64
+                } else {
+                    0
+                };
+
+                if fee_rate < threshold_fee {
+                    bincode::serialize(&entry.transaction.id).ok()
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Get current historical average fee
+    pub fn get_historical_avg(&self) -> u64 {
+        let guard = self.historical_avg_fee.read().unwrap();
+        *guard
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -322,13 +490,13 @@ mod tests {
 
     #[test]
     fn test_pressure_calculation() {
-        let policy = EvictionPolicy {
+        let _policy = EvictionPolicy {
             max_transaction_count: 100,
             max_memory_bytes: 10000,
             batch_size: 10,
         };
 
-        let stats = super::super::pool::PoolStats {
+        let _stats = super::super::pool::PoolStats {
             total_count: 50,
             pending_count: 50,
             validated_count: 0,

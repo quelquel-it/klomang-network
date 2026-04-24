@@ -313,6 +313,19 @@ impl PriorityScheduler {
         Ok(self.priorities.read().get(tx_hash).cloned())
     }
 
+    /// Update priority score for a transaction by adding a delta
+    pub fn update_priority(&self, tx_hash: &TxHash, score_delta: i64) -> StorageResult<()> {
+        let mut priorities = self.priorities.write();
+        if let Some(priority) = priorities.get_mut(tx_hash) {
+            priority.score = (priority.score + score_delta as f64).max(0.0);
+            priority.last_update = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+        }
+        Ok(())
+    }
+
     /// Get all transactions sorted by dynamic priority (descending)
     pub fn get_all_by_priority(&self) -> StorageResult<Vec<(TxHash, DynamicPriority)>> {
         let priorities = self.priorities.read();

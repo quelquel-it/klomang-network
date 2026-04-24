@@ -111,8 +111,6 @@ impl EnhancedPoolValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_enhanced_validator_creation() {
         // Placeholder test - integration tests will verify functionality

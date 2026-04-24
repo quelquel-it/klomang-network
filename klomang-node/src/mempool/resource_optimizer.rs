@@ -38,18 +38,6 @@ impl From<&Transaction> for TransactionValue {
     }
 }
 
-/// Dummy KvStore implementation for testing
-impl KvStore {
-    pub fn new_dummy() -> Self {
-        // For testing purposes, we'll create a KvStore that doesn't actually store
-        // but provides the interface. In production, this should never be used.
-        
-        // This will panic in tests, but that's acceptable for now
-        // Real implementation would need in-memory RocksDB
-        panic!("KvStore::new_dummy requires real StorageDb - use in tests only")
-    }
-}
-
 /// Configuration for resource optimization
 #[derive(Clone, Debug)]
 pub struct ResourceOptimizerConfig {

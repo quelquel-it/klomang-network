@@ -49,19 +49,24 @@ pub mod admission_controller;
 pub mod graph_conflict_ordering;
 pub mod graph_conflict_ordering_integration;
 pub mod parallel_selection;
+pub mod set_packer;
+pub mod multi_queue;
 
 pub use status::{TransactionStatus, TransactionStatusError};
 pub use pool::{TransactionPool, PoolConfig, PoolEntry, PoolStats, FeeFilter};
 pub use validation::PoolValidator;
 pub use selection::{SelectionCriteria, SelectionStrategy, DeterministicSelector};
 pub use revalidation::{RevalidationEngine, RevalidationStats, ConflictInfo, RevalidationResult};
-pub use eviction::{EvictionEngine, EvictionPolicy, EvictionResult, EvictionScore, MempoolPressure};
+pub use eviction::{EvictionEngine, EvictionPolicy, EvictionResult, EvictionScore, MempoolPressure, AgingProcessor, EvictionPredictor};
 pub use conflict::{UtxoTracker, UtxoConflictError, OutPoint, UtxoLock, ConflictStats};
 pub use ownership::{UtxoOwnershipManager, OwnershipError, TransactionAddedInfo, TransactionRemovedInfo, ConflictAnalysis};
 pub use advanced_conflicts::{ConflictMap, TxHash, ConflictType, ResolutionResult, ResolutionReason, OutPoint as AdvancedOutPoint};
 pub use dependency_graph::{DependencyGraph, TransactionDependency, ConflictPartition, DependencyGraphStats};
 pub use advanced_transaction_manager::{AdvancedTransactionManager, ManagerError, TransactionAdditionResult, ConflictAnalysis as AdvancedConflictAnalysis, ConflictStatus};
 pub use conflict_graph::{ConflictGraph, ConflictGraphStats, ConflictNode};
+pub use parallel_selection::{ParallelSelectionBuilder, FeeBalancer};
+pub use set_packer::{SetPacker, SovereignSet};
+pub use multi_queue::{MultiQueueAdmissionSystem, QueueStats};
 pub use rbf_manager::{RBFManager, RBFChoice, RBFReason, RBFEvaluation};
 pub use conflict_rbf_integration::{ConflictRBFManager, AddTransactionResult, ConflictAnalysis as IntegrationConflictAnalysis};
 pub use advanced_dependency_manager::{TxDependencyManager, DependencyLevel, DependencyChain, DependencyStats};
@@ -133,7 +138,4 @@ pub use memory_limiter::{
 pub use resource_optimizer::{
     ResourceOptimizer, ResourceOptimizerConfig, HotTier, ColdTier,
     HybridPolicy, TransactionMetadata, HotTierStats, ResourceOptimizerStats,
-};
-pub use parallel_selection::{
-    ParallelSelectionBuilder, FeeBalancer,
 };

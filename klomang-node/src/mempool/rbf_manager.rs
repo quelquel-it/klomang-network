@@ -248,8 +248,8 @@ impl RBFManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klomang_core::core::state::transaction::TxInput;
     use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::{SigHashType, TxInput};
 
     fn create_test_tx(id: u8, prev_ids: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
@@ -257,6 +257,9 @@ mod tests {
             inputs.push(TxInput {
                 prev_tx: Hash::new(&[*prev_id; 32]),
                 index: idx as u32,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
             });
         }
 
@@ -279,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_rbf_higher_fee_rate() {
-        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_test());
+        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store));
         let rbf = RBFManager::new(graph);
 
@@ -305,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_rbf_insufficient_fee() {
-        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_test());
+        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store));
         let rbf = RBFManager::new(graph);
 
@@ -325,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_rbf_tiebreaker() {
-        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_test());
+        let kv_store = Arc::new(crate::storage::kv_store::KvStore::new_dummy());
         let graph = Arc::new(ConflictGraph::new(kv_store));
         let rbf = RBFManager::new(graph);
 

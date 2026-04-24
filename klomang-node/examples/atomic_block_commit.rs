@@ -4,10 +4,16 @@
 use std::sync::Arc;
 
 use klomang_node::storage::{
-    AtomicBlockWriter, BlockTransactionBatch, SpentUtxoBatch, KvStore, StorageDb, StorageConfig, StorageCacheLayer,
+    BlockTransactionBatch, SpentUtxoBatch, KvStore, StorageDb, StorageConfig, StorageCacheLayer,
+};
+
+use klomang_node::storage::schema::{
     BlockValue, HeaderValue, TransactionValue, TransactionInput, TransactionOutput,
     UtxoValue, UtxoSpentValue, DagNodeValue, DagTipsValue,
 };
+
+use klomang_node::storage::metrics::StorageMetrics;
+use klomang_core::NoOpMetricsCollector;
 
 /// Example: Demonstrate atomic block commitment with error handling
 pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error>> {
@@ -15,9 +21,9 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
     let config = StorageConfig::new("./atomic_block_data")
         .with_block_cache_size(2 * 1024 * 1024 * 1024);
 
-    let db = StorageDb::open_with_config(&config)?;
-    let cache_layer = StorageCacheLayer::new(db);
-    let kv_store = KvStore::new(Arc::new(cache_layer));
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     // === Block Setup ===
     let block_hash = b"block_001_hash_____________________________";
@@ -42,6 +48,7 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         difficulty: 1000000,
         nonce: 12345,
         verkle_root: b"verkle_root_hash_".to_vec(),
+        height: block_height as u64,
     };
 
     // === Transaction 1: Spend one UTXO, create two new ones ===
@@ -66,13 +73,11 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         outputs: vec![
             TransactionOutput {
                 amount: 50_000_000,
-                script: b"output_script_1".to_vec(),
-                owner: b"address_1".to_vec(),
+                pubkey_hash: b"address_1".to_vec(),
             },
             TransactionOutput {
                 amount: 49_900_000,
-                script: b"output_script_2".to_vec(),
-                owner: b"address_2".to_vec(),
+                pubkey_hash: b"address_2".to_vec(),
             },
         ],
         fee: 100_000,
@@ -126,8 +131,7 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         ],
         outputs: vec![TransactionOutput {
             amount: 99_000_000,
-            script: b"output_script_merged".to_vec(),
-            owner: b"address_merged".to_vec(),
+            pubkey_hash: b"address_merged".to_vec(),
         }],
         fee: 900_000,
     };
@@ -194,9 +198,9 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
 /// Example: Error handling - serialization failure prevents commit
 pub fn example_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./error_handling_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let cache_layer = StorageCacheLayer::new(db);
-    let kv_store = KvStore::new(Arc::new(cache_layer));
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     let block_hash = b"error_test_block________________________";
 
@@ -215,6 +219,7 @@ pub fn example_error_handling() -> Result<(), Box<dyn std::error::Error>> {
         difficulty: 1000000,
         nonce: 12345,
         verkle_root: b"root".to_vec(),
+        height: 1,
     };
 
     let dag_node = DagNodeValue::new(block_hash.to_vec(), vec![], vec![], vec![], 0);
@@ -244,8 +249,9 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
     println!("\n=== Complex Block Scenario ===\n");
 
     let config = StorageConfig::new("./complex_scenario_data");
-    let db = StorageDb::open_with_config(&config)?;
-    let kv_store = KvStore::new(db);
+    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let cache_layer = Arc::new(StorageCacheLayer::new(db));
+    let kv_store = KvStore::new(cache_layer);
 
     let block_hash = b"complex_block_hash_______________________";
     let block_height = 100u32;
@@ -255,15 +261,15 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
 
     // Create several transactions with different UTXO patterns
     for tx_idx in 0..5 {
-        let tx_hash = format!("tx_{:03d}_hash___________________________", tx_idx)
+        let tx_hash = format!("tx_{:03}_hash____________________________", tx_idx)
             .as_bytes()
             .to_vec();
         let mut tx_hash_arr = [0u8; 32];
         tx_hash_arr[..tx_hash.len().min(32)].copy_from_slice(&tx_hash[..tx_hash.len().min(32)]);
 
         // Each transaction spends 1-3 UTXOs and creates 2-4 new ones
-        let mut spent_count = 1 + (tx_idx % 3);
-        let mut new_count = 2 + (tx_idx % 3);
+        let spent_count = 1 + (tx_idx % 3);
+        let new_count = 2 + (tx_idx % 3);
 
         let mut spent = Vec::new();
         for i in 0..spent_count {
@@ -301,8 +307,7 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
             }).collect(),
             outputs: (0..new_count).map(|i| TransactionOutput {
                 amount: base_amount + (i as u64 * 100_000),
-                script: format!("script_{}", i).as_bytes().to_vec(),
-                owner: format!("owner_{}", i).as_bytes().to_vec(),
+                pubkey_hash: format!("owner_{}", i).as_bytes().to_vec(),
             }).collect(),
             fee: 100_000,
         };
@@ -330,6 +335,7 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
         difficulty: 1000000,
         nonce: 12345,
         verkle_root: b"root".to_vec(),
+        height: block_height as u64,
     };
 
     let dag_node = DagNodeValue::new(

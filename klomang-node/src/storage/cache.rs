@@ -536,21 +536,24 @@ mod tests {
     use super::*;
     use crate::storage::config::StorageConfig;
     use crate::storage::db::StorageDb;
+    use crate::storage::metrics::StorageMetrics;
+    use klomang_core::core::metrics::NoOpMetricsCollector;
     use tempfile::TempDir;
 
     #[test]
     fn test_utxo_hot_cache_round_trip() {
         let temp_dir = TempDir::new().expect("failed to create temp dir");
         let config = StorageConfig::new(temp_dir.path());
-        let db = StorageDb::open_with_config(&config).expect("open db");
+        let metrics = Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector)));
+        let db = StorageDb::open_with_config(&config, metrics).expect("open db");
         let cache = StorageCacheLayer::new(db);
 
         let tx_hash = vec![0u8; 32];
         let utxo = UtxoValue::new(100, vec![1], vec![2], 1);
 
         cache.put_utxo(&tx_hash, 0, &utxo).expect("put utxo");
-        let loaded = cache.get_utxo(&tx_hash, 0).expect("get utxo");
+        let loaded: Option<UtxoValue> = cache.get_utxo(&tx_hash, 0).expect("get utxo");
 
-        assert_eq!(loaded, Some(utxo));
+        assert!(loaded.is_some() && loaded.as_ref().unwrap() == &utxo);
     }
 }
