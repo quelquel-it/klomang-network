@@ -10,8 +10,8 @@ use klomang_core::core::state::transaction::Transaction;
 
 use crate::storage::error::StorageResult;
 
-use super::validation::{PoolValidator, ValidationResult};
 use super::advanced_dependency_manager::TxDependencyManager;
+use super::validation::{PoolValidator, ValidationResult};
 
 /// Validation result with dependency tracking information
 #[derive(Clone, Debug)]
@@ -52,7 +52,8 @@ impl EnhancedPoolValidator {
         let validation_result = self.base_validator.validate_transaction(tx)?;
 
         // Then, register with dependency manager if valid
-        let (ancestor_count, execution_depth, is_immediately_executable) = match &validation_result {
+        let (ancestor_count, execution_depth, is_immediately_executable) = match &validation_result
+        {
             ValidationResult::Valid => {
                 // Register transaction with dependencies
                 let dep_chain = self.dependency_manager.register_transaction(tx)?;
@@ -85,8 +86,12 @@ impl EnhancedPoolValidator {
     }
 
     /// Get dependency chain for validated transaction
-    pub fn get_dependency_info(&self, tx_hash: &[u8]) -> Option<super::advanced_dependency_manager::DependencyChain> {
-        self.dependency_manager.get_dependency_chain(&tx_hash.to_vec())
+    pub fn get_dependency_info(
+        &self,
+        tx_hash: &[u8],
+    ) -> Option<super::advanced_dependency_manager::DependencyChain> {
+        self.dependency_manager
+            .get_dependency_chain(&tx_hash.to_vec())
     }
 
     /// Check if transaction has circular dependencies

@@ -3,12 +3,10 @@
 //! Demonstrates practical scenarios for UTXO ownership management and conflict resolution
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
+use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput};
 use std::sync::Arc;
 
-use klomang_node::mempool::{
-    UtxoOwnershipManager, TransactionPool, PoolConfig,
-};
+use klomang_node::mempool::{PoolConfig, TransactionPool, UtxoOwnershipManager};
 use klomang_node::storage::kv_store::KvStore;
 
 /// Create a test transaction with specified inputs
@@ -105,7 +103,10 @@ pub fn example_conflict_detection() -> Result<(), Box<dyn std::error::Error>> {
 
     // Check tracker state
     let claims = manager.get_transaction_claims(&bincode::serialize(&tx1.id).unwrap());
-    println!("TX-1 claims are still active: {} outpoints claimed", claims.len());
+    println!(
+        "TX-1 claims are still active: {} outpoints claimed",
+        claims.len()
+    );
     println!();
 
     Ok(())
@@ -126,7 +127,10 @@ pub fn example_rbf_replacement() -> Result<(), Box<dyn std::error::Error>> {
     let result1 = manager.add_transaction_with_ownership(tx1.clone(), fee1, 250)?;
     println!("Step 1: TX-1 (low fee) added");
     println!("  - Fee: {} sat/byte", fee1 / 250);
-    println!("  - Claimed: {} outpoints\n", result1.claimed_outpoints.len());
+    println!(
+        "  - Claimed: {} outpoints\n",
+        result1.claimed_outpoints.len()
+    );
 
     // Create second transaction trying to spend the SAME UTXO with HIGHER FEE
     let tx2 = create_test_tx(2, vec![20]); // Same prev_tx as tx1
@@ -137,8 +141,14 @@ pub fn example_rbf_replacement() -> Result<(), Box<dyn std::error::Error>> {
         Ok(result2) => {
             println!("✅ TX-2 (higher fee) accepted!");
             println!("  - Fee: {} sat/byte", fee2 / 250);
-            println!("  - RBF replacements: {} (TX-1 removed)", result2.rbf_replacements);
-            println!("  - Claimed: {} outpoints\n", result2.claimed_outpoints.len());
+            println!(
+                "  - RBF replacements: {} (TX-1 removed)",
+                result2.rbf_replacements
+            );
+            println!(
+                "  - Claimed: {} outpoints\n",
+                result2.claimed_outpoints.len()
+            );
         }
         Err(e) => {
             println!("❌ ERROR: TX-2 with higher fee should have replaced TX-1!");
@@ -168,7 +178,10 @@ pub fn example_transaction_removal() -> Result<(), Box<dyn std::error::Error>> {
     let tx_hash = bincode::serialize(&tx.id)?;
 
     let result = manager.add_transaction_with_ownership(tx.clone(), 1000, 250)?;
-    println!("Transaction added with {} outpoint claims", result.claimed_outpoints.len());
+    println!(
+        "Transaction added with {} outpoint claims",
+        result.claimed_outpoints.len()
+    );
 
     // Get transaction info before removal
     let claims_before = manager.get_transaction_claims(&tx_hash);
@@ -179,7 +192,10 @@ pub fn example_transaction_removal() -> Result<(), Box<dyn std::error::Error>> {
     let removal_info = manager.remove_transaction(&tx_hash)?;
     println!("Transaction removed!");
     println!("  - Found: {}", removal_info.found);
-    println!("  - Released outpoints: {}", removal_info.released_outpoints);
+    println!(
+        "  - Released outpoints: {}",
+        removal_info.released_outpoints
+    );
     println!();
 
     // Try to add a new transaction using the same UTXO (should now succeed)
@@ -204,18 +220,35 @@ pub fn example_conflict_analysis() -> Result<(), Box<dyn std::error::Error>> {
     println!("Adding 5 transactions...");
     for i in 1..=5 {
         let tx = create_test_tx(i as u8, vec![i as u8 + 40]);
-        manager.add_transaction_with_ownership(tx, 1000 + (i as u64 * 100), 250).ok();
+        manager
+            .add_transaction_with_ownership(tx, 1000 + (i as u64 * 100), 250)
+            .ok();
     }
     println!();
 
     // Analyze conflicts
     let analysis = manager.analyze_conflicts()?;
     println!("Conflict Analysis Results:");
-    println!("  - Total transactions in pool: {}", analysis.total_transactions);
-    println!("  - Transactions with UTXO claims: {}", analysis.transactions_with_claims);
-    println!("  - Unique outpoints claimed: {}", analysis.unique_outpoints_claimed);
-    println!("  - RBF replacements (lifetime): {}", analysis.rbf_replacements_lifetime);
-    println!("  - Conflicts detected (lifetime): {}", analysis.total_conflicts_detected);
+    println!(
+        "  - Total transactions in pool: {}",
+        analysis.total_transactions
+    );
+    println!(
+        "  - Transactions with UTXO claims: {}",
+        analysis.transactions_with_claims
+    );
+    println!(
+        "  - Unique outpoints claimed: {}",
+        analysis.unique_outpoints_claimed
+    );
+    println!(
+        "  - RBF replacements (lifetime): {}",
+        analysis.rbf_replacements_lifetime
+    );
+    println!(
+        "  - Conflicts detected (lifetime): {}",
+        analysis.total_conflicts_detected
+    );
     println!();
 
     // Get tracker stats
@@ -255,7 +288,7 @@ pub fn example_multiple_conflicts() -> Result<(), Box<dyn std::error::Error>> {
 
     manager.add_transaction_with_ownership(tx_b1.clone(), 2000, 250)?;
     println!("  TX-1 added (fee: 2000)");
-    
+
     match manager.add_transaction_with_ownership(tx_b2, 1000, 250) {
         Ok(_) => println!("❌ ERROR: Should have rejected\n"),
         Err(_) => println!("✅ TX-2 rejected (fee: 1000 < 2000)\n"),
@@ -268,7 +301,7 @@ pub fn example_multiple_conflicts() -> Result<(), Box<dyn std::error::Error>> {
 
     manager.add_transaction_with_ownership(tx_c1.clone(), 1000, 250)?;
     println!("  TX-1 added (fee: 1000)");
-    
+
     match manager.add_transaction_with_ownership(tx_c2, 3000, 250) {
         Ok(info) => {
             println!("✅ TX-2 accepted (fee: 3000 > 1000)");

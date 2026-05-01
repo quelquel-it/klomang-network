@@ -9,8 +9,8 @@ use klomang_core::core::state::transaction::Transaction;
 
 use crate::storage::kv_store::KvStore;
 
-use super::conflict::{UtxoTracker, UtxoConflictError, OutPoint, ConflictStats};
-use super::pool::{TransactionPool, PoolEntry};
+use super::conflict::{ConflictStats, OutPoint, UtxoConflictError, UtxoTracker};
+use super::pool::{PoolEntry, TransactionPool};
 use super::status::TransactionStatus;
 
 /// Result type for ownership management operations
@@ -79,10 +79,7 @@ pub struct UtxoOwnershipManager {
 
 impl UtxoOwnershipManager {
     /// Create new UTXO ownership manager
-    pub fn new(
-        pool: Arc<TransactionPool>,
-        kv_store: Arc<KvStore>,
-    ) -> Self {
+    pub fn new(pool: Arc<TransactionPool>, kv_store: Arc<KvStore>) -> Self {
         let tracker = Arc::new(UtxoTracker::new(Arc::clone(&kv_store)));
 
         Self {
@@ -109,7 +106,9 @@ impl UtxoOwnershipManager {
             .map_err(|e| OwnershipError::InvalidTransaction(format!("Tx serialization: {}", e)))?;
 
         // Check for conflicts before registration
-        let conflicts = self.tracker.check_conflicts(&tx)
+        let conflicts = self
+            .tracker
+            .check_conflicts(&tx)
             .map_err(|e| OwnershipError::Conflict(e))?;
 
         let mut rbf_count = 0;
@@ -124,37 +123,45 @@ impl UtxoOwnershipManager {
                     // Remove conflicting transaction from pool
                     if self.pool.remove(&lock.claimed_by).is_none() {
                         return Err(OwnershipError::PoolError(
-                            "Failed to remove conflicting transaction".to_string()
+                            "Failed to remove conflicting transaction".to_string(),
                         ));
                     }
 
                     // Release conflicting transaction's claims
-                    self.tracker.release_claims(&lock.claimed_by)
+                    self.tracker
+                        .release_claims(&lock.claimed_by)
                         .map_err(|e| OwnershipError::Conflict(e))?;
 
+                    // Record RBF replacement in conflict tracker stats
+                    self.tracker.record_rbf_replacement();
                     rbf_count += 1;
                 } else {
                     // New transaction has lower fee - reject
-                    return Err(OwnershipError::Conflict(UtxoConflictError::UtxoAlreadyClaimed {
-                        outpoint: conflict_outpoint.to_string(),
-                        claimed_by: lock.claimed_by,
-                        current_fee: existing_fee,
-                        new_fee: fee,
-                    }));
+                    return Err(OwnershipError::Conflict(
+                        UtxoConflictError::UtxoAlreadyClaimed {
+                            outpoint: conflict_outpoint.to_string(),
+                            claimed_by: lock.claimed_by,
+                            current_fee: existing_fee,
+                            new_fee: fee,
+                        },
+                    ));
                 }
             }
         }
 
         // Register claims for new transaction
-        self.tracker.register_claims(&tx, fee)
+        self.tracker
+            .register_claims(&tx, fee)
             .map_err(|e| OwnershipError::Conflict(e))?;
 
         // Add to pool
-        self.pool.add_transaction(tx.clone(), fee, size_bytes)
+        self.pool
+            .add_transaction(tx.clone(), fee, size_bytes)
             .map_err(|e| OwnershipError::PoolError(e))?;
 
         // Get claimed outpoints for response
-        let claimed_outpoints = self.tracker
+        let claimed_outpoints = self
+            .tracker
             .get_transaction_claims(&tx_hash)
             .unwrap_or_default();
 
@@ -172,10 +179,12 @@ impl UtxoOwnershipManager {
         fee: u64,
         size_bytes: usize,
     ) -> OwnershipResult<()> {
-        self.tracker.register_claims(&tx, fee)
+        self.tracker
+            .register_claims(&tx, fee)
             .map_err(|e| OwnershipError::Conflict(e))?;
 
-        self.pool.add_transaction(tx, fee, size_bytes)
+        self.pool
+            .add_transaction(tx, fee, size_bytes)
             .map_err(|e| OwnershipError::PoolError(e))?;
 
         Ok(())
@@ -187,12 +196,14 @@ impl UtxoOwnershipManager {
 
         if found {
             // Get number of released outpoints before releasing
-            let released_count = self.tracker
+            let released_count = self
+                .tracker
                 .get_transaction_claims(tx_hash)
                 .map(|v| v.len())
                 .unwrap_or(0);
-                
-            self.tracker.release_claims(tx_hash)
+
+            self.tracker
+                .release_claims(tx_hash)
                 .map_err(|e| OwnershipError::Conflict(e))?;
 
             Ok(TransactionRemovedInfo {
@@ -215,11 +226,13 @@ impl UtxoOwnershipManager {
     ) -> OwnershipResult<()> {
         if new_status == TransactionStatus::InBlock {
             // Release claims when transaction is included in block
-            self.tracker.release_claims(tx_hash)
+            self.tracker
+                .release_claims(tx_hash)
                 .map_err(|e| OwnershipError::Conflict(e))?;
         }
 
-        self.pool.set_status(tx_hash, new_status)
+        self.pool
+            .set_status(tx_hash, new_status)
             .map_err(|e| OwnershipError::PoolError(e))?;
 
         Ok(())
@@ -257,7 +270,9 @@ impl UtxoOwnershipManager {
 
     /// Check if transaction has any conflicting inputs
     pub fn has_conflicts(&self, tx: &Transaction) -> OwnershipResult<bool> {
-        let conflicts = self.tracker.check_conflicts(tx)
+        let conflicts = self
+            .tracker
+            .check_conflicts(tx)
             .map_err(|e| OwnershipError::Conflict(e))?;
 
         Ok(!conflicts.is_empty())
@@ -265,7 +280,9 @@ impl UtxoOwnershipManager {
 
     /// Get all claims made by a transaction
     pub fn get_transaction_claims(&self, tx_hash: &[u8]) -> Vec<String> {
-        self.tracker.get_transaction_claims(tx_hash).unwrap_or_default()
+        self.tracker
+            .get_transaction_claims(tx_hash)
+            .unwrap_or_default()
     }
 
     /// Get conflict statistics
@@ -281,10 +298,9 @@ impl UtxoOwnershipManager {
     /// Verify a transaction's inputs are available in blockchain
     pub fn verify_inputs_available(&self, tx: &Transaction) -> OwnershipResult<bool> {
         for (idx, input) in tx.inputs.iter().enumerate() {
-            let prev_tx_hash = bincode::serialize(&input.prev_tx)
-                .map_err(|e| OwnershipError::InvalidTransaction(
-                    format!("Input {} serialization: {}", idx, e)
-                ))?;
+            let prev_tx_hash = bincode::serialize(&input.prev_tx).map_err(|e| {
+                OwnershipError::InvalidTransaction(format!("Input {} serialization: {}", idx, e))
+            })?;
 
             // TODO: Check KvStore for actual UTXO availability
             // For now, return basic validation
@@ -297,20 +313,21 @@ impl UtxoOwnershipManager {
     }
 
     /// Get transaction by hash with full ownership context
-    pub fn get_transaction_with_context(
-        &self,
-        tx_hash: &[u8],
-    ) -> Option<(PoolEntry, Vec<String>)> {
+    pub fn get_transaction_with_context(&self, tx_hash: &[u8]) -> Option<(PoolEntry, Vec<String>)> {
         let all_txs = self.pool.get_all();
-        let entry = all_txs.iter()
+        let entry = all_txs
+            .iter()
             .find(|e| {
                 bincode::serialize(&e.transaction.id)
                     .map(|h| h.as_slice() == tx_hash)
                     .unwrap_or(false)
             })?
             .clone();
-            
-        let claims = self.tracker.get_transaction_claims(tx_hash).unwrap_or_default();
+
+        let claims = self
+            .tracker
+            .get_transaction_claims(tx_hash)
+            .unwrap_or_default();
 
         Some((entry, claims))
     }
@@ -324,9 +341,11 @@ impl UtxoOwnershipManager {
         let mut unique_outpoints = std::collections::HashSet::new();
 
         for entry in all_txs.iter() {
-            let tx_hash = bincode::serialize(&entry.transaction.id)
+            let tx_hash = bincode::serialize(&entry.transaction.id).unwrap_or_default();
+            let claims = self
+                .tracker
+                .get_transaction_claims(&tx_hash)
                 .unwrap_or_default();
-            let claims = self.tracker.get_transaction_claims(&tx_hash).unwrap_or_default();
 
             for claim in claims.clone() {
                 unique_outpoints.insert(claim);
@@ -461,7 +480,9 @@ mod tests {
         let tx = create_test_tx(1, 1);
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
-        manager.add_transaction_with_ownership(tx.clone(), 1000, 250).ok();
+        manager
+            .add_transaction_with_ownership(tx.clone(), 1000, 250)
+            .ok();
         assert_eq!(manager.tracker().active_claims_count(), 1);
 
         let result = manager.remove_transaction(&tx_hash);

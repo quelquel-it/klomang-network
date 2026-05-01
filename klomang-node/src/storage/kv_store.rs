@@ -1,14 +1,17 @@
 use std::convert::TryInto;
 use std::sync::Arc;
 
-use crate::storage::cf::ColumnFamilyName;
+use crate::storage::atomic_write::{AtomicBlockWriter, BlockTransactionBatch};
 use crate::storage::cache::StorageCacheLayer;
+use crate::storage::cf::ColumnFamilyName;
 use crate::storage::config::StorageConfig;
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
-use crate::storage::atomic_write::{AtomicBlockWriter, BlockTransactionBatch};
 use crate::storage::metrics::StorageMetrics;
-use crate::storage::schema::{BlockValue, HeaderValue, TransactionValue, UtxoValue, UtxoSpentValue, VerkleStateValue, DagNodeValue, DagTipsValue};
+use crate::storage::schema::{
+    BlockValue, DagNodeValue, DagTipsValue, HeaderValue, TransactionValue, UtxoSpentValue,
+    UtxoValue, VerkleStateValue,
+};
 use klomang_core::NoOpMetricsCollector;
 use tempfile::TempDir;
 
@@ -20,7 +23,10 @@ pub struct KvStore {
 
 impl KvStore {
     pub fn new(cache_layer: Arc<StorageCacheLayer>) -> Self {
-        Self { cache_layer, _temp_dir: None }
+        Self {
+            cache_layer,
+            _temp_dir: None,
+        }
     }
 
     pub fn new_dummy() -> Self {
@@ -94,7 +100,11 @@ impl KvStore {
     pub fn put_mempool_min_fee_rate(&self, min_fee_rate: u64) -> StorageResult<()> {
         self.cache_layer
             .db()
-            .put(ColumnFamilyName::Default, b"mempool:min_fee_rate", &min_fee_rate.to_be_bytes())
+            .put(
+                ColumnFamilyName::Default,
+                b"mempool:min_fee_rate",
+                &min_fee_rate.to_be_bytes(),
+            )
             .map_err(|e| StorageError::from(e))
     }
 
@@ -118,7 +128,13 @@ impl KvStore {
     }
 
     /// Store historical system load metrics for trend analysis
-    pub fn put_system_load_trend(&self, timestamp: u64, cpu_percent: f64, ram_percent: f64, tx_count: usize) -> StorageResult<()> {
+    pub fn put_system_load_trend(
+        &self,
+        timestamp: u64,
+        cpu_percent: f64,
+        ram_percent: f64,
+        tx_count: usize,
+    ) -> StorageResult<()> {
         let key = format!("system_load:{}", timestamp);
         let value = bincode::serialize(&(cpu_percent, ram_percent, tx_count))
             .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -130,7 +146,10 @@ impl KvStore {
     }
 
     /// Get historical system load metrics
-    pub fn get_system_load_trend(&self, timestamp: u64) -> StorageResult<Option<(f64, f64, usize)>> {
+    pub fn get_system_load_trend(
+        &self,
+        timestamp: u64,
+    ) -> StorageResult<Option<(f64, f64, usize)>> {
         let key = format!("system_load:{}", timestamp);
         match self
             .cache_layer
@@ -138,8 +157,9 @@ impl KvStore {
             .get(ColumnFamilyName::Default, key.as_bytes())?
         {
             Some(raw) => {
-                let (cpu_percent, ram_percent, tx_count): (f64, f64, usize) = bincode::deserialize(&raw)
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                let (cpu_percent, ram_percent, tx_count): (f64, f64, usize) =
+                    bincode::deserialize(&raw)
+                        .map_err(|e| StorageError::SerializationError(e.to_string()))?;
                 Ok(Some((cpu_percent, ram_percent, tx_count)))
             }
             None => Ok(None),
@@ -187,7 +207,12 @@ impl KvStore {
     // UTXO OPERATIONS
     // ============================
 
-    pub fn put_utxo(&self, tx_hash: &[u8], output_index: u32, utxo: &UtxoValue) -> StorageResult<()> {
+    pub fn put_utxo(
+        &self,
+        tx_hash: &[u8],
+        output_index: u32,
+        utxo: &UtxoValue,
+    ) -> StorageResult<()> {
         self.cache_layer.put_utxo(tx_hash, output_index, utxo)
     }
 
@@ -200,10 +225,7 @@ impl KvStore {
     }
 
     pub fn utxo_exists(&self, tx_hash: &[u8], output_index: u32) -> StorageResult<bool> {
-        Ok(self
-            .cache_layer
-            .get_utxo(tx_hash, output_index)?
-            .is_some())
+        Ok(self.cache_layer.get_utxo(tx_hash, output_index)?.is_some())
     }
 
     // ============================
@@ -216,7 +238,8 @@ impl KvStore {
         output_index: u32,
         spent: &UtxoSpentValue,
     ) -> StorageResult<()> {
-        self.cache_layer.put_utxo_spent(tx_hash, output_index, spent)
+        self.cache_layer
+            .put_utxo_spent(tx_hash, output_index, spent)
     }
 
     pub fn get_utxo_spent(
@@ -292,7 +315,10 @@ impl KvStore {
     // ============================
 
     pub fn flush(&self) -> StorageResult<()> {
-        self.cache_layer.db().flush().map_err(|e| StorageError::from(e))
+        self.cache_layer
+            .db()
+            .flush()
+            .map_err(|e| StorageError::from(e))
     }
 
     // ============================

@@ -4,21 +4,23 @@
 mod advanced_conflict_tests {
     use std::sync::Arc;
 
-    use klomang_node::mempool::advanced_conflicts::{ConflictMap, TxHash, ConflictType, ResolutionReason};
-    use klomang_node::mempool::dependency_graph::DependencyGraph;
+    use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput};
+    use klomang_node::mempool::advanced_conflicts::{
+        ConflictMap, ConflictType, ResolutionReason, TxHash,
+    };
     use klomang_node::mempool::advanced_transaction_manager::AdvancedTransactionManager;
+    use klomang_node::mempool::dependency_graph::DependencyGraph;
     use klomang_node::mempool::pool::TransactionPool;
     use klomang_node::mempool::PoolConfig;
     use klomang_node::storage::kv_store::KvStore;
-    use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
 
     fn create_test_tx(id: u8, prev_txs: Vec<u8>) -> Transaction {
         let mut inputs = Vec::new();
-        for (idx, prev_tx_id) in prev_txs.iter().enumerate() {
+        for prev_tx_id in prev_txs {
             inputs.push(TxInput {
-                prev_tx: Hash::new(&[*prev_tx_id; 32]),
-                index: idx as u32,
+                prev_tx: Hash::new(&[prev_tx_id; 32]),
+                index: 0,
                 signature: vec![0; 64],
                 pubkey: vec![0; 33],
                 sighash_type: SigHashType::All,
@@ -66,17 +68,15 @@ mod advanced_conflict_tests {
         assert!(matches!(result_c, Ok(ConflictType::DirectConflict { .. })));
 
         // Resolve all three
-        let resolution_ab = conflict_map.resolve_conflict(
-            &tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 2000,
-        );
+        let resolution_ab =
+            conflict_map.resolve_conflict(&tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 2000);
         assert!(resolution_ab.is_ok());
         let res_ab = resolution_ab.unwrap();
         assert_eq!(res_ab.winner, hash_b); // B has higher fee rate
         assert_eq!(res_ab.reason, ResolutionReason::HigherFeeRate);
 
-        let resolution_bc = conflict_map.resolve_conflict(
-            &tx_b, &tx_c, &hash_b, &hash_c, 100, 100, 2000, 500,
-        );
+        let resolution_bc =
+            conflict_map.resolve_conflict(&tx_b, &tx_c, &hash_b, &hash_c, 100, 100, 2000, 500);
         assert!(resolution_bc.is_ok());
         let res_bc = resolution_bc.unwrap();
         assert_eq!(res_bc.winner, hash_b); // B still higher
@@ -99,9 +99,8 @@ mod advanced_conflict_tests {
         let tx_b = create_test_tx(2, vec![100]);
         let hash_b = tx_hash(2);
 
-        let result = conflict_map.resolve_conflict(
-            &tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 1000,
-        );
+        let result =
+            conflict_map.resolve_conflict(&tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 1000);
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.reason, ResolutionReason::EarlierArrival);
@@ -120,11 +119,20 @@ mod advanced_conflict_tests {
         let tx_a = create_test_tx(1, vec![100]);
         let tx_b = create_test_tx(2, vec![100]);
 
-        conflict_map.register_transaction(&tx_a, &hash_a).ok();
+        let same_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
 
-        let result = conflict_map.resolve_conflict(
-            &tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 1000,
-        );
+        conflict_map
+            .register_transaction_with_arrival_time(&tx_a, &hash_a, same_time)
+            .ok();
+        conflict_map
+            .register_transaction_with_arrival_time(&tx_b, &hash_b, same_time)
+            .ok();
+
+        let result =
+            conflict_map.resolve_conflict(&tx_a, &tx_b, &hash_a, &hash_b, 100, 100, 1000, 1000);
         assert!(result.is_ok());
         let res = result.unwrap();
         assert_eq!(res.reason, ResolutionReason::LexicographicalHash);
@@ -192,7 +200,10 @@ mod advanced_conflict_tests {
         // All should be in same partition
         let partition_a = graph.get_partition(&tx_a);
         let partition_b = graph.get_partition(&tx_b);
-        assert_eq!(partition_a.as_ref().map(|p| p.id), partition_b.as_ref().map(|p| p.id));
+        assert_eq!(
+            partition_a.as_ref().map(|p| p.id),
+            partition_b.as_ref().map(|p| p.id)
+        );
 
         // All should be marked as conflict
         for tx in &[tx_a, tx_b, tx_c, tx_d] {
@@ -308,12 +319,8 @@ mod advanced_conflict_tests {
         let graph = Arc::new(DependencyGraph::new());
         let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
-        let manager = AdvancedTransactionManager::new(
-            conflict_map.clone(),
-            graph.clone(),
-            pool,
-            kv_store,
-        );
+        let manager =
+            AdvancedTransactionManager::new(conflict_map.clone(), graph.clone(), pool, kv_store);
 
         // Register some conflicting transactions
         let tx_a = create_test_tx(1, vec![100]);
@@ -338,12 +345,7 @@ mod advanced_conflict_tests {
         let graph = Arc::new(DependencyGraph::new());
         let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
-        let manager = AdvancedTransactionManager::new(
-            conflict_map,
-            graph.clone(),
-            pool,
-            kv_store,
-        );
+        let manager = AdvancedTransactionManager::new(conflict_map, graph.clone(), pool, kv_store);
 
         let tx = tx_hash(1);
         graph.register_transaction(&tx);

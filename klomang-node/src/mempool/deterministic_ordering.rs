@@ -9,10 +9,10 @@
 //! The engine ensures that all nodes produce the same transaction ordering
 //! when given the same set of transactions, regardless of arrival order.
 
-use std::sync::Arc;
-use parking_lot::RwLock;
+use super::priority_ordering::{PrioritizedTransaction, PriorityBuckets, PriorityOrderingConfig};
 use crate::storage::KvStore;
-use super::priority_ordering::{PriorityBuckets, PrioritizedTransaction, PriorityOrderingConfig};
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Configuration for deterministic ordering engine
 #[derive(Clone, Debug)]
@@ -121,13 +121,8 @@ impl DeterministicOrderingEngine {
         size_bytes: usize,
         total_fee: u64,
     ) -> Result<(), String> {
-        let prioritized_tx = PrioritizedTransaction::new(
-            tx_hash,
-            fee_rate,
-            arrival_time,
-            size_bytes,
-            total_fee,
-        );
+        let prioritized_tx =
+            PrioritizedTransaction::new(tx_hash, fee_rate, arrival_time, size_bytes, total_fee);
 
         let buckets = self.priority_buckets.write();
         buckets.insert(prioritized_tx)
@@ -148,7 +143,10 @@ impl DeterministicOrderingEngine {
     ///
     /// CONSENSUS CRITICAL: This ordering is used for block building and must
     /// be identical across all nodes for consensus safety.
-    pub fn get_ordered_transactions(&self, limit: usize) -> Result<Vec<PrioritizedTransaction>, String> {
+    pub fn get_ordered_transactions(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<PrioritizedTransaction>, String> {
         let buckets = self.priority_buckets.read();
         let transactions = buckets.get_ordered_transactions(limit);
         Ok(transactions)
@@ -159,7 +157,8 @@ impl DeterministicOrderingEngine {
         let buckets = self.priority_buckets.read();
 
         // Verify bucket consistency (internal ordering)
-        buckets.verify_consistency()
+        buckets
+            .verify_consistency()
             .map_err(|e| format!("Bucket consistency check failed: {}", e))?;
 
         let transaction_count = buckets.total_count();
@@ -171,7 +170,10 @@ impl DeterministicOrderingEngine {
             false
         };
 
-        Ok(OrderingValidation::success(transaction_count, storage_verified))
+        Ok(OrderingValidation::success(
+            transaction_count,
+            storage_verified,
+        ))
     }
 
     /// Validate transaction ordering against another engine
@@ -238,7 +240,11 @@ impl DeterministicOrderingEngine {
             total_transactions: stats.total_transactions,
             total_fees: stats.total_fees,
             bucket_count: buckets.bucket_count(),
-            bucket_distribution: stats.bucket_info.iter().map(|b| b.transaction_count).collect(),
+            bucket_distribution: stats
+                .bucket_info
+                .iter()
+                .map(|b| b.transaction_count)
+                .collect(),
         })
     }
 
@@ -329,7 +335,9 @@ mod tests {
         let engine = DeterministicOrderingEngine::new(config);
 
         let (hash, fee_rate, arrival_time, size, total_fee) = create_test_tx(1, 50, 1000);
-        assert!(engine.add_transaction(hash, fee_rate, arrival_time, size, total_fee).is_ok());
+        assert!(engine
+            .add_transaction(hash, fee_rate, arrival_time, size, total_fee)
+            .is_ok());
 
         assert_eq!(engine.get_ordered_transactions(10).unwrap().len(), 1);
     }
@@ -341,8 +349,11 @@ mod tests {
 
         // Add multiple transactions
         for i in 0..5 {
-            let (hash, fee_rate, arrival_time, size, total_fee) = create_test_tx(i, 50 + i as u64, 1000);
-            assert!(engine.add_transaction(hash, fee_rate, arrival_time, size, total_fee).is_ok());
+            let (hash, fee_rate, arrival_time, size, total_fee) =
+                create_test_tx(i, 50 + i as u64, 1000);
+            assert!(engine
+                .add_transaction(hash, fee_rate, arrival_time, size, total_fee)
+                .is_ok());
         }
 
         let first_result = engine.get_ordered_transactions(10).unwrap();
@@ -361,7 +372,9 @@ mod tests {
         let engine = DeterministicOrderingEngine::new(config);
 
         let (hash, fee_rate, arrival_time, size, total_fee) = create_test_tx(1, 50, 1000);
-        assert!(engine.add_transaction(hash, fee_rate, arrival_time, size, total_fee).is_ok());
+        assert!(engine
+            .add_transaction(hash, fee_rate, arrival_time, size, total_fee)
+            .is_ok());
 
         let validation = engine.verify_ordering_consistency().unwrap();
         assert!(validation.is_valid);
@@ -375,7 +388,9 @@ mod tests {
         let (hash, fee_rate, arrival_time, size, total_fee) = create_test_tx(1, 50, 1000);
         let hash_vec = hash.clone();
 
-        assert!(engine.add_transaction(hash, fee_rate, arrival_time, size, total_fee).is_ok());
+        assert!(engine
+            .add_transaction(hash, fee_rate, arrival_time, size, total_fee)
+            .is_ok());
         assert_eq!(engine.get_ordered_transactions(10).unwrap().len(), 1);
 
         let removed = engine.remove_transaction(&hash_vec);

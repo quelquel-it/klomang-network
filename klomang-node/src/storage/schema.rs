@@ -42,7 +42,12 @@ pub struct BlockValue {
 }
 
 impl BlockValue {
-    pub fn from_parts(hash: Vec<u8>, header_bytes: Vec<u8>, transactions: Vec<Vec<u8>>, timestamp: u64) -> Self {
+    pub fn from_parts(
+        hash: Vec<u8>,
+        header_bytes: Vec<u8>,
+        transactions: Vec<Vec<u8>>,
+        timestamp: u64,
+    ) -> Self {
         Self {
             hash,
             header_bytes,
@@ -106,7 +111,7 @@ pub struct TransactionInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TransactionOutput {
     pub amount: u64,
-    pub pubkey_hash: Vec<u8>,  // Hash as bytes for serialization
+    pub pubkey_hash: Vec<u8>, // Hash as bytes for serialization
 }
 
 impl TransactionValue {
@@ -126,8 +131,8 @@ impl TransactionValue {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UtxoValue {
     pub amount: u64,
-    pub pubkey_hash: Vec<u8>,  // Hash as bytes for serialization
-    pub script: Vec<u8>,       // Script bytes for serialization
+    pub pubkey_hash: Vec<u8>, // Hash as bytes for serialization
+    pub script: Vec<u8>,      // Script bytes for serialization
     pub block_height: u32,
 }
 

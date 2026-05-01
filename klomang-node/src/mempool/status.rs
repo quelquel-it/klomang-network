@@ -11,17 +11,17 @@ use serde::{Deserialize, Serialize};
 pub enum TransactionStatus {
     /// Transaction received but not yet validated
     Pending,
-    
+
     /// Transaction inputs fully verified against UTXO storage
     Validated,
-    
+
     /// Transaction inputs reference unknown UTXOs (waiting for dependencies)
     /// When dependencies arrive, transitions to Validated
     InOrphanPool,
-    
+
     /// Transaction included in a block and committed to storage
     InBlock,
-    
+
     /// Transaction failed validation and rejected permanently
     Rejected,
 }
@@ -34,7 +34,7 @@ pub enum TransactionStatusError {
         current: TransactionStatus,
         target: TransactionStatus,
     },
-    
+
     /// Operation not allowed in current state
     OperationNotAllowed {
         state: TransactionStatus,
@@ -50,29 +50,32 @@ impl TransactionStatus {
             (TransactionStatus::Pending, TransactionStatus::Validated) => true,
             (TransactionStatus::Pending, TransactionStatus::InOrphanPool) => true,
             (TransactionStatus::Pending, TransactionStatus::Rejected) => true,
-            
+
             // From InOrphanPool, can go to Validated or Rejected (when deps never arrive)
             (TransactionStatus::InOrphanPool, TransactionStatus::Validated) => true,
             (TransactionStatus::InOrphanPool, TransactionStatus::Rejected) => true,
-            
+
             // From Validated, can go to InBlock or Rejected (if double-spent)
             (TransactionStatus::Validated, TransactionStatus::InBlock) => true,
             (TransactionStatus::Validated, TransactionStatus::Rejected) => true,
-            
+
             // InBlock and Rejected are terminal states
             (TransactionStatus::InBlock, _) => false,
             (TransactionStatus::Rejected, _) => false,
-            
+
             // Identity transition always allowed for polling/refresh
             (s1, s2) if s1 == s2 => true,
-            
+
             // All other transitions are invalid
             _ => false,
         }
     }
 
     /// Attempt safe transition with validation
-    pub fn transition_to(&mut self, target: TransactionStatus) -> Result<(), TransactionStatusError> {
+    pub fn transition_to(
+        &mut self,
+        target: TransactionStatus,
+    ) -> Result<(), TransactionStatusError> {
         if !self.can_transition_to(target) {
             return Err(TransactionStatusError::InvalidTransition {
                 current: *self,

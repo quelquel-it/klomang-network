@@ -8,8 +8,6 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-use klomang_core::core::state::transaction::Transaction;
-
 use super::pool::{PoolEntry, SelectedTransaction};
 
 /// Criteria for selecting transactions
@@ -17,13 +15,13 @@ use super::pool::{PoolEntry, SelectedTransaction};
 pub enum SelectionCriteria {
     /// Select up to N transactions
     MaxCount(usize),
-    
+
     /// Select transactions up to N bytes
     MaxBytes(usize),
-    
+
     /// Select transactions up to N satoshis
     MaxFees(u64),
-    
+
     /// Combined criteria
     Combined {
         max_count: usize,
@@ -37,10 +35,10 @@ pub enum SelectionCriteria {
 pub enum SelectionStrategy {
     /// Highest fee first (greedy)
     HighestFee,
-    
+
     /// Ancestor set aware (respects dependencies)
     AncestorSet,
-    
+
     /// Simple FIFO (for testing/fallback)
     FIFO,
 }
@@ -70,7 +68,11 @@ impl DeterministicSelector {
     }
 
     /// Select by highest fee rate with deterministic tie-breaking
-    fn select_by_fee(&self, entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<SelectedTransaction> {
+    fn select_by_fee(
+        &self,
+        entries: Vec<PoolEntry>,
+        criteria: SelectionCriteria,
+    ) -> Vec<SelectedTransaction> {
         // Create priority queue with custom ordering
         let mut heap = BinaryHeap::with_capacity(entries.len());
 
@@ -111,7 +113,11 @@ impl DeterministicSelector {
     }
 
     /// Select by FIFO (arrival time)
-    fn select_by_fifo(&self, mut entries: Vec<PoolEntry>, criteria: SelectionCriteria) -> Vec<SelectedTransaction> {
+    fn select_by_fifo(
+        &self,
+        mut entries: Vec<PoolEntry>,
+        criteria: SelectionCriteria,
+    ) -> Vec<SelectedTransaction> {
         // Sort by arrival time first, then by hash for determinism
         entries.sort_by(|a, b| {
             match a.arrival_time.cmp(&b.arrival_time) {
@@ -120,7 +126,7 @@ impl DeterministicSelector {
                     let a_hash = bincode::serialize(&a.transaction.id).unwrap_or_default();
                     let b_hash = bincode::serialize(&b.transaction.id).unwrap_or_default();
                     a_hash.cmp(&b_hash)
-                },
+                }
                 other => other,
             }
         });
@@ -193,19 +199,21 @@ impl PartialOrd for ComparablePoolEntry {
 impl Ord for ComparablePoolEntry {
     fn cmp(&self, other: &Self) -> Ordering {
         // Primary: Compare by fee rate (descending - higher fee first)
-        match other.0.fee_rate().cmp(&self.0.fee_rate()) {
+        match self.0.fee_rate().cmp(&other.0.fee_rate()) {
             Ordering::Equal => {
                 // Secondary: Compare by arrival time (ascending - earlier first)
                 match self.0.arrival_time.cmp(&other.0.arrival_time) {
                     Ordering::Equal => {
                         // Tertiary: Compare by transaction hash (deterministic)
-                        let self_hash = bincode::serialize(&self.0.transaction.id).unwrap_or_default();
-                        let other_hash = bincode::serialize(&other.0.transaction.id).unwrap_or_default();
+                        let self_hash =
+                            bincode::serialize(&self.0.transaction.id).unwrap_or_default();
+                        let other_hash =
+                            bincode::serialize(&other.0.transaction.id).unwrap_or_default();
                         self_hash.cmp(&other_hash)
-                    },
+                    }
                     other_ord => other_ord,
                 }
-            },
+            }
             fee_ord => fee_ord,
         }
     }
@@ -215,6 +223,7 @@ impl Ord for ComparablePoolEntry {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
+    use klomang_core::core::state::transaction::Transaction;
 
     fn create_entry(hash_seed: u8, fee_rate: u64, arrival_time: u64) -> PoolEntry {
         let tx = Transaction {
@@ -249,7 +258,7 @@ mod tests {
 
         let selected = selector.select(entries, SelectionCriteria::MaxCount(2));
         assert_eq!(selected.len(), 2);
-        
+
         // Should select highest fee first
         let first_hash = bincode::serialize(&selected[0].transaction.id).unwrap();
         let expected_hash = bincode::serialize(&Hash::new(&[2u8; 32])).unwrap();
@@ -286,8 +295,8 @@ mod tests {
 
         let entries = vec![
             create_entry(1, 100, 1010), // Later
-            create_entry(2, 50, 1000), // Earlier
-            create_entry(3, 75, 1005), // Middle
+            create_entry(2, 50, 1000),  // Earlier
+            create_entry(3, 75, 1005),  // Middle
         ];
 
         let selected = selector.select(entries, SelectionCriteria::MaxCount(3));

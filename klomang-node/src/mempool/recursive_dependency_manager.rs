@@ -11,13 +11,13 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
-use crate::storage::error::{StorageResult, StorageError};
 use super::recursive_dependency_tracker::{
-    RecursiveDependencyTracker, TxHash, DependencyResolutionStatus,
-    AncestryValidation, CascadeInvalidationResult, RecursiveDependencyStats,
+    AncestryValidation, CascadeInvalidationResult, DependencyResolutionStatus,
+    RecursiveDependencyStats, RecursiveDependencyTracker, TxHash,
 };
 use super::status::TransactionStatus;
+use crate::storage::error::{StorageError, StorageResult};
+use crate::storage::kv_store::KvStore;
 
 /// Advanced configuration for recursive dependency management
 #[derive(Clone, Debug)]
@@ -101,7 +101,7 @@ impl RecursiveDependencyManager {
     }
 
     /// Register transaction with full recursive ancestry tracking
-    /// 
+    ///
     /// This is the main entry point for adding a transaction to mempool.
     /// Automatically builds complete ancestor/descendant closure and
     /// validates dependency chain.
@@ -144,24 +144,30 @@ impl RecursiveDependencyManager {
     }
 
     /// Resolve entire dependency chain for a transaction
-    /// 
+    ///
     /// Checks all ancestors recursively and determines if transaction
     /// can be executed (all ancestors present and valid).
-    pub fn resolve_dependency_chain(&self, tx_hash: &TxHash) -> StorageResult<DependencyResolutionStatus> {
+    pub fn resolve_dependency_chain(
+        &self,
+        tx_hash: &TxHash,
+    ) -> StorageResult<DependencyResolutionStatus> {
         self.tracker.resolve_dependency_chain(tx_hash)
     }
 
     /// Mark ancestor as invalid, cascade invalidate all dependents
-    /// 
+    ///
     /// This is called when an ancestor transaction is rejected, conflicted,
     /// or otherwise becomes invalid. All its descendants are automatically
     /// marked invalid recursively.
-    pub fn mark_ancestor_invalid(&self, tx_hash: &TxHash) -> StorageResult<CascadeInvalidationResult> {
+    pub fn mark_ancestor_invalid(
+        &self,
+        tx_hash: &TxHash,
+    ) -> StorageResult<CascadeInvalidationResult> {
         self.tracker.cascade_invalidate(tx_hash)
     }
 
     /// Perform validation on full ancestry tree
-    /// 
+    ///
     /// Returns detailed validation state including:
     /// - Current resolution status
     /// - Missing ancestors count
@@ -172,7 +178,7 @@ impl RecursiveDependencyManager {
     }
 
     /// Get all transactions ready for block inclusion
-    /// 
+    ///
     /// Performs topological sort on ready transactions by execution depth.
     /// Returns them in valid execution order.
     pub fn get_ready_transactions(&self) -> StorageResult<Vec<TxHash>> {
@@ -237,10 +243,13 @@ impl RecursiveDependencyManager {
     }
 
     /// Perform bulk resolution on transaction set
-    /// 
+    ///
     /// Given a set of transactions (e.g., after ancestor becomes available),
     /// resolve all of them and return which ones changed status.
-    pub fn bulk_resolve_transactions(&self, tx_hashes: &[TxHash]) -> StorageResult<BulkResolutionResult> {
+    pub fn bulk_resolve_transactions(
+        &self,
+        tx_hashes: &[TxHash],
+    ) -> StorageResult<BulkResolutionResult> {
         let mut newly_ready = Vec::new();
         let mut newly_invalid = Vec::new();
         let mut still_unresolved = Vec::new();
@@ -263,7 +272,7 @@ impl RecursiveDependencyManager {
     }
 
     /// Remove transaction completely from tracking
-    /// 
+    ///
     /// This is called when transaction is included in block or explicitly evicted.
     /// Also removes all references in ancestor/descendant relationships.
     pub fn remove_transaction(&self, tx_hash: &TxHash) -> StorageResult<()> {
@@ -337,12 +346,9 @@ impl RecursiveDependencyManager {
     /// Get transaction's current cached status
     pub fn get_transaction_status(&self, tx_hash: &TxHash) -> StorageResult<TransactionStatus> {
         let cache = self.status_cache.read();
-        cache
-            .get(tx_hash)
-            .copied()
-            .ok_or_else(|| StorageError::NotFound(
-                format!("Transaction {:?} not in cache", tx_hash)
-            ))
+        cache.get(tx_hash).copied().ok_or_else(|| {
+            StorageError::NotFound(format!("Transaction {:?} not in cache", tx_hash))
+        })
     }
 
     /// Check if transaction is in Ready state
@@ -382,8 +388,6 @@ impl RecursiveDependencyManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_recursive_dependency_manager_creation() {
         // Placeholder for integration testing

@@ -2,7 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use klomang_node::storage::{StorageDb, StorageConfig, WriteBatch, StorageCacheLayer, KvStore, ReadPath};
+    use klomang_node::storage::{
+        KvStore, ReadPath, StorageCacheLayer, StorageConfig, StorageDb, WriteBatch,
+    };
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -55,7 +57,7 @@ mod tests {
 
         let db = StorageDb::open(&db_path, &wal_dir).expect("Failed to open DB");
         let _cache_layer = StorageCacheLayer::new(db);
-        
+
         // Cache layer should be created successfully
         assert!(true); // If we reach here, initialization worked
     }
@@ -69,7 +71,7 @@ mod tests {
         let db = StorageDb::open(&db_path, &wal_dir).expect("Failed to open DB");
         let cache_layer = StorageCacheLayer::new(db);
         let _kv_store = KvStore::new(Arc::new(cache_layer));
-        
+
         // KvStore should be created successfully
         assert!(true);
     }
@@ -83,7 +85,7 @@ mod tests {
         let db = StorageDb::open(&db_path, &wal_dir).expect("Failed to open DB");
         let cache_layer = StorageCacheLayer::new(db);
         let _read_path = ReadPath::new(Arc::new(cache_layer));
-        
+
         // ReadPath should be created successfully
         assert!(true);
     }

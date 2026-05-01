@@ -22,7 +22,10 @@ pub struct OutPoint {
 
 impl OutPoint {
     pub fn new(tx_hash: Vec<u8>, output_index: u32) -> Self {
-        Self { tx_hash, output_index }
+        Self {
+            tx_hash,
+            output_index,
+        }
     }
 
     pub fn from_hash(hash: &Hash, index: u32) -> crate::storage::error::StorageResult<Self> {
@@ -247,11 +250,7 @@ impl ConflictGraph {
     }
 
     /// Add dependency relationship between transactions
-    pub fn add_dependency(
-        &self,
-        child: &TxHash,
-        parent: &TxHash,
-    ) -> Result<(), String> {
+    pub fn add_dependency(&self, child: &TxHash, parent: &TxHash) -> Result<(), String> {
         let mut nodes = self.nodes.write();
 
         if let Some(child_node) = nodes.get_mut(child) {
@@ -303,10 +302,7 @@ impl ConflictGraph {
     }
 
     /// Remove transaction and all its descendants
-    pub fn remove_and_cascade(
-        &self,
-        tx_hash: &TxHash,
-    ) -> Result<Vec<TxHash>, String> {
+    pub fn remove_and_cascade(&self, tx_hash: &TxHash) -> Result<Vec<TxHash>, String> {
         let mut nodes = self.nodes.write();
         let mut outpoint_index = self.outpoint_index.write();
         let mut conflict_sets = self.conflict_sets.write();
@@ -355,7 +351,7 @@ impl ConflictGraph {
             !txs.is_empty()
         });
 
-        stats.total_nodes -= removed.len() as u64;
+        stats.total_nodes = stats.total_nodes.saturating_sub(removed.len() as u64);
 
         Ok(removed)
     }
@@ -505,14 +501,10 @@ mod tests {
         let hash1 = tx_hash(1);
         let hash2 = tx_hash(2);
 
-        let conflicts1 = graph
-            .register_transaction(&tx1, &hash1, 1000, 100)
-            .unwrap();
+        let conflicts1 = graph.register_transaction(&tx1, &hash1, 1000, 100).unwrap();
         assert!(conflicts1.is_empty());
 
-        let conflicts2 = graph
-            .register_transaction(&tx2, &hash2, 500, 100)
-            .unwrap();
+        let conflicts2 = graph.register_transaction(&tx2, &hash2, 500, 100).unwrap();
         assert_eq!(conflicts2.len(), 1);
         assert_eq!(conflicts2[0], hash1);
     }

@@ -13,7 +13,7 @@ mod integration_tests {
     use std::sync::Arc;
 
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, SigHashType, TxInput};
+    use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput};
 
     use crate::mempool::conflict_graph::ConflictGraph;
     use crate::mempool::rbf_manager::RBFManager;
@@ -60,11 +60,23 @@ mod integration_tests {
         let tx2_hash =
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&tx2.id).unwrap());
 
-        let conflicts1 = graph.register_transaction(&tx1, &tx1_hash, 1000, 100).unwrap();
-        assert_eq!(conflicts1.len(), 0, "First transaction should have no conflicts");
+        let conflicts1 = graph
+            .register_transaction(&tx1, &tx1_hash, 1000, 100)
+            .unwrap();
+        assert_eq!(
+            conflicts1.len(),
+            0,
+            "First transaction should have no conflicts"
+        );
 
-        let conflicts2 = graph.register_transaction(&tx2, &tx2_hash, 1000, 100).unwrap();
-        assert_eq!(conflicts2.len(), 1, "Second transaction should detect first as conflict");
+        let conflicts2 = graph
+            .register_transaction(&tx2, &tx2_hash, 1000, 100)
+            .unwrap();
+        assert_eq!(
+            conflicts2.len(),
+            1,
+            "Second transaction should detect first as conflict"
+        );
     }
 
     #[test]
@@ -84,7 +96,9 @@ mod integration_tests {
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&new_tx.id).unwrap());
 
         let choice = rbf
-            .evaluate_rbf_supremacy(&new_tx, &new_hash, 2000, 100, &orig_tx, &orig_hash, 1000, 100)
+            .evaluate_rbf_supremacy(
+                &new_tx, &new_hash, 2000, 100, &orig_tx, &orig_hash, 1000, 100,
+            )
             .unwrap();
 
         match choice {
@@ -120,7 +134,9 @@ mod integration_tests {
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&new_tx.id).unwrap());
 
         let choice = rbf
-            .evaluate_rbf_supremacy(&new_tx, &new_hash, 1005, 100, &orig_tx, &orig_hash, 1000, 100)
+            .evaluate_rbf_supremacy(
+                &new_tx, &new_hash, 1005, 100, &orig_tx, &orig_hash, 1000, 100,
+            )
             .unwrap();
 
         match choice {
@@ -199,11 +215,17 @@ mod integration_tests {
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&tx3.id).unwrap());
 
         // Register transactions with dependencies
-        graph.register_transaction(&tx1, &tx1_hash, 1000, 100).unwrap();
+        graph
+            .register_transaction(&tx1, &tx1_hash, 1000, 100)
+            .unwrap();
+        graph
+            .register_transaction(&tx2, &tx2_hash, 1000, 100)
+            .unwrap();
         graph.add_dependency(&tx2_hash, &tx1_hash).unwrap();
-        graph.register_transaction(&tx2, &tx2_hash, 1000, 100).unwrap();
+        graph
+            .register_transaction(&tx3, &tx3_hash, 1000, 100)
+            .unwrap();
         graph.add_dependency(&tx3_hash, &tx2_hash).unwrap();
-        graph.register_transaction(&tx3, &tx3_hash, 1000, 100).unwrap();
 
         // Remove TX1 - should cascade and remove TX2 and TX3
         let evicted = graph.remove_and_cascade(&tx1_hash).unwrap();
@@ -236,8 +258,12 @@ mod integration_tests {
         let tx2_hash =
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&tx2.id).unwrap());
 
-        graph.register_transaction(&tx1, &tx1_hash, 1000, 100).unwrap();
-        graph.register_transaction(&tx2, &tx2_hash, 1000, 100).unwrap();
+        graph
+            .register_transaction(&tx1, &tx1_hash, 1000, 100)
+            .unwrap();
+        graph
+            .register_transaction(&tx2, &tx2_hash, 1000, 100)
+            .unwrap();
 
         // Get conflict set for TX1
         let conflict_set = graph.get_conflict_set(&tx1_hash).unwrap();
@@ -292,8 +318,12 @@ mod integration_tests {
         let tx2_hash =
             crate::mempool::conflict_graph::TxHash::new(bincode::serialize(&tx2.id).unwrap());
 
-        graph.register_transaction(&tx1, &tx1_hash, 1000, 100).unwrap();
-        graph.register_transaction(&tx2, &tx2_hash, 1000, 100).unwrap();
+        graph
+            .register_transaction(&tx1, &tx1_hash, 1000, 100)
+            .unwrap();
+        graph
+            .register_transaction(&tx2, &tx2_hash, 1000, 100)
+            .unwrap();
 
         let stats = graph.get_stats();
         assert_eq!(stats.total_nodes, 2, "Should have 2 nodes");

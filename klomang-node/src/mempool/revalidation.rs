@@ -9,10 +9,10 @@ use std::sync::Arc;
 use klomang_core::core::dag::BlockNode;
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
-use super::pool::{TransactionPool, PoolEntry};
+use super::pool::{PoolEntry, TransactionPool};
 use super::status::TransactionStatus;
 use super::validation::{PoolValidator, ValidationResult};
 
@@ -21,7 +21,7 @@ use super::validation::{PoolValidator, ValidationResult};
 pub struct ConflictInfo {
     /// Transaction hashes that are in the block
     pub block_tx_hashes: HashSet<Vec<u8>>,
-    
+
     /// UTXOs spent by block transactions
     pub spent_utxos: HashSet<(Vec<u8>, u32)>,
 }
@@ -76,13 +76,13 @@ impl ConflictInfo {
 pub enum RevalidationResult {
     /// Transaction still valid
     StillValid,
-    
+
     /// Transaction became invalid (double-spent by block)
     NowInvalid,
-    
+
     /// Transaction moved from orphan to valid (dependencies now available)
     OrphanResolved,
-    
+
     /// Transaction already in block (no change)
     InBlock,
 }
@@ -110,7 +110,7 @@ impl RevalidationEngine {
     }
 
     /// Revalidate pool after new block arrival
-    /// 
+    ///
     /// Returns number of transactions affected
     pub fn revalidate_on_block(&self, new_block: &BlockNode) -> StorageResult<RevalidationStats> {
         let conflict_info = ConflictInfo::from_block(new_block);
@@ -235,16 +235,16 @@ impl RevalidationEngine {
 pub struct RevalidationStats {
     /// Total transactions revalidated
     pub total_revalidated: usize,
-    
+
     /// Transactions still valid after block
     pub still_valid: usize,
-    
+
     /// Transactions removed due to double-spend
     pub removed_double_spent: usize,
-    
+
     /// Orphan transactions resolved
     pub orphan_resolved: usize,
-    
+
     /// Transactions found in block
     pub in_block: usize,
 }
@@ -263,7 +263,7 @@ pub struct RevalidationImpactAnalysis {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{TxInput, TxOutput, SigHashType};
+    use klomang_core::core::state::transaction::{SigHashType, TxInput, TxOutput};
     use std::collections::HashSet;
 
     fn create_test_tx(id_seed: u8, inputs: Vec<(u8, u32)>) -> Transaction {
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn test_conflict_detection() {
         let block_tx = create_test_tx(1, vec![]);
-        
+
         let block = BlockNode {
             header: klomang_core::core::dag::BlockHeader {
                 id: Hash::new(&[0u8; 32]),
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_affected_transaction_detection() {
         let block_tx = create_test_tx(1, vec![(2, 0)]);
-        
+
         let block = BlockNode {
             header: klomang_core::core::dag::BlockHeader {
                 id: Hash::new(&[0u8; 32]),

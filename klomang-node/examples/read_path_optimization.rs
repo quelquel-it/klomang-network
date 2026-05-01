@@ -3,16 +3,19 @@
 
 use std::sync::Arc;
 
-use klomang_node::storage::{
-    ReadPath, OutPoint, StorageDb, StorageConfig, KvStore, StorageCacheLayer,
-};
-use klomang_node::storage::metrics::StorageMetrics;
 use klomang_core::core::metrics::NoOpMetricsCollector;
+use klomang_node::storage::metrics::StorageMetrics;
+use klomang_node::storage::{
+    KvStore, OutPoint, ReadPath, StorageCacheLayer, StorageConfig, StorageDb,
+};
 
 /// Example: Single UTXO lookup (standard)
 pub fn example_single_utxo_lookup() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -32,7 +35,10 @@ pub fn example_single_utxo_lookup() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Batch UTXO lookup (multi-get) - significantly faster
 pub fn example_batch_utxo_lookup() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -62,7 +68,10 @@ pub fn example_batch_utxo_lookup() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Prefix seek - scan all outputs of a transaction
 pub fn example_prefix_scan_by_tx_hash() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -70,7 +79,11 @@ pub fn example_prefix_scan_by_tx_hash() -> Result<(), Box<dyn std::error::Error>
     let tx_hash = vec![1u8; 32];
     let outputs = read_path.get_utxos_by_tx_hash(&tx_hash)?;
 
-    println!("Transaction {} has {} outputs:", String::from_utf8_lossy(&tx_hash), outputs.len());
+    println!(
+        "Transaction {} has {} outputs:",
+        String::from_utf8_lossy(&tx_hash),
+        outputs.len()
+    );
     for (output_index, utxo) in outputs {
         println!("  [{}] amount={}", output_index, utxo.amount);
     }
@@ -81,7 +94,10 @@ pub fn example_prefix_scan_by_tx_hash() -> Result<(), Box<dyn std::error::Error>
 /// Example: Range scan with upper bounds (memory efficient)
 pub fn example_range_scan_with_bounds() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -92,7 +108,11 @@ pub fn example_range_scan_with_bounds() -> Result<(), Box<dyn std::error::Error>
 
     let results = read_path.scan_utxo_range(&start_key, &end_key, max_results)?;
 
-    println!("Range scan returned {} results (max: {})", results.len(), max_results);
+    println!(
+        "Range scan returned {} results (max: {})",
+        results.len(),
+        max_results
+    );
     for (key, utxo) in results.iter().take(5) {
         println!("  Key: {:?}, Amount: {}", &key[..8], utxo.amount);
     }
@@ -103,7 +123,10 @@ pub fn example_range_scan_with_bounds() -> Result<(), Box<dyn std::error::Error>
 /// Example: Get DAG tips efficiently
 pub fn example_get_dag_tips() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -122,7 +145,10 @@ pub fn example_get_dag_tips() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Scan DAG nodes
 pub fn example_scan_dag_nodes() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -139,7 +165,10 @@ pub fn example_scan_dag_nodes() -> Result<(), Box<dyn std::error::Error>> {
 /// Example: Bulk existence check
 pub fn example_bulk_existence_check() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./read_path_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = StorageCacheLayer::new(db);
     let read_path = ReadPath::new(Arc::new(cache_layer));
 
@@ -153,7 +182,11 @@ pub fn example_bulk_existence_check() -> Result<(), Box<dyn std::error::Error>> 
 
     println!("Existence check results:");
     for (outpoint, exists) in existence_map {
-        println!("  {:?}: {}", &outpoint.tx_hash[..8], if exists { "exists" } else { "not found" });
+        println!(
+            "  {:?}: {}",
+            &outpoint.tx_hash[..8],
+            if exists { "exists" } else { "not found" }
+        );
     }
 
     Ok(())
@@ -164,7 +197,10 @@ pub fn example_performance_comparison() -> Result<(), Box<dyn std::error::Error>
     use std::time::Instant;
 
     let config = StorageConfig::new("./read_path_perf_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = Arc::new(StorageCacheLayer::new(db));
     let read_path = ReadPath::new(cache_layer.clone());
     let _kv_store = KvStore::new(cache_layer);
@@ -208,7 +244,10 @@ pub fn example_prefix_seek_efficiency() -> Result<(), Box<dyn std::error::Error>
     use std::time::Instant;
 
     let config = StorageConfig::new("./read_path_prefix_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = Arc::new(StorageCacheLayer::new(db));
     let read_path = ReadPath::new(cache_layer);
 

@@ -1,13 +1,12 @@
-use std::path::PathBuf;
-use rocksdb::DBCompactionStyle;
 use klomang_core::Config as CoreConfig;
+use rocksdb::DBCompactionStyle;
+use std::path::PathBuf;
 
 use super::db::{
-    DEFAULT_BLOCK_CACHE_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_BLOOM_BITS_PER_KEY,
-    BYTES_PER_SYNC, DEFAULT_COMPACTION_STYLE,
-    DEFAULT_LEVEL_COMPACTION_DYNAMIC_LEVEL_BYTES, MAX_BACKGROUND_JOBS,
-    DEFAULT_MAX_BYTES_FOR_LEVEL_BASE, MAX_OPEN_FILES, DEFAULT_TARGET_FILE_SIZE_BASE,
-    DEFAULT_WRITE_BUFFER_SIZE, USE_FSYNC, WAL_SIZE_LIMIT_MB, WAL_TTL_SECONDS,
+    BYTES_PER_SYNC, DEFAULT_BLOCK_CACHE_SIZE, DEFAULT_BLOCK_SIZE, DEFAULT_BLOOM_BITS_PER_KEY,
+    DEFAULT_COMPACTION_STYLE, DEFAULT_LEVEL_COMPACTION_DYNAMIC_LEVEL_BYTES,
+    DEFAULT_MAX_BYTES_FOR_LEVEL_BASE, DEFAULT_TARGET_FILE_SIZE_BASE, DEFAULT_WRITE_BUFFER_SIZE,
+    MAX_BACKGROUND_JOBS, MAX_OPEN_FILES, USE_FSYNC, WAL_SIZE_LIMIT_MB, WAL_TTL_SECONDS,
 };
 
 /// Configuration for RocksDB storage backend
@@ -72,7 +71,8 @@ impl StorageConfig {
     pub fn with_core_config(mut self, core_config: &CoreConfig) -> Self {
         // Adjust based on hardware capabilities declared by core.
         self.max_background_jobs = std::cmp::max(1, core_config.num_cpus as i32);
-        self.rate_limiter_bytes_per_second = (core_config.disk_write_bandwidth_mbps * 1024 * 1024) as i64;
+        self.rate_limiter_bytes_per_second =
+            (core_config.disk_write_bandwidth_mbps * 1024 * 1024) as i64;
         self.hot_data_cache_size = (core_config.total_memory_mb / 4) * 1024 * 1024; // 25% of RAM for hot data
         self.cold_data_cache_size = (core_config.total_memory_mb / 16) * 1024 * 1024; // 6.25% of RAM for cold data
         self

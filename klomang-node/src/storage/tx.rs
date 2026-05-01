@@ -5,7 +5,9 @@ pub struct TxStore {
 
 impl TxStore {
     pub fn new() -> Self {
-        Self { transaction_count: 0 }
+        Self {
+            transaction_count: 0,
+        }
     }
 
     pub fn add_transaction(&mut self) {

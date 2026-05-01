@@ -7,8 +7,8 @@
 //! - Atomic eviction of invalidated chains
 //! - Integration between dependency manager and transaction pool
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use crate::storage::error::StorageResult;
 
@@ -102,7 +102,9 @@ impl CascadeValidationCoordinator {
         parent_tx_hash: &TxHash,
     ) -> StorageResult<CascadeEvent> {
         // Get direct children of the confirmed parent
-        let direct_children = self.dependency_manager.get_dependent_children(parent_tx_hash);
+        let direct_children = self
+            .dependency_manager
+            .get_dependent_children(parent_tx_hash);
 
         let mut child_results = Vec::new();
         let mut promoted_count = 0;
@@ -131,7 +133,8 @@ impl CascadeValidationCoordinator {
             stats.total_cascades += 1;
         }
 
-        let total_dependents = self.dependency_manager
+        let total_dependents = self
+            .dependency_manager
             .get_all_transitive_dependents(parent_tx_hash)
             .len();
 
@@ -157,8 +160,10 @@ impl CascadeValidationCoordinator {
 
         // The actual re-validation happens through the executor
         // Here we determine the cascade result based on dependency state
-        
-        let ancestors = self.dependency_manager.get_executable_ancestors(child_tx_hash);
+
+        let ancestors = self
+            .dependency_manager
+            .get_executable_ancestors(child_tx_hash);
 
         // If all ancestors are present and confirmed, child can be promoted
         if ancestors.is_empty() {
@@ -172,19 +177,14 @@ impl CascadeValidationCoordinator {
 
     /// Get all transitive dependents of a transaction
     /// (Direct and indirect children affected by this transaction)
-    pub fn get_affected_descendants(
-        &self,
-        tx_hash: &TxHash,
-    ) -> Vec<TxHash> {
-        self.dependency_manager.get_all_transitive_dependents(tx_hash)
+    pub fn get_affected_descendants(&self, tx_hash: &TxHash) -> Vec<TxHash> {
+        self.dependency_manager
+            .get_all_transitive_dependents(tx_hash)
     }
 
     /// Remove transaction from cascade tracking
     /// Should be called when transaction is removed from mempool
-    pub fn remove_from_tracking(
-        &self,
-        tx_hash: &TxHash,
-    ) -> Vec<TxHash> {
+    pub fn remove_from_tracking(&self, tx_hash: &TxHash) -> Vec<TxHash> {
         self.dependency_manager.remove_transaction(tx_hash)
     }
 

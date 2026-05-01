@@ -10,11 +10,11 @@
 //! - Preservation of valid child transactions
 //! - Detailed eviction statistics and tracking
 
-use std::collections::{HashSet, VecDeque};
-use std::sync::Arc;
-use parking_lot::RwLock;
 use crate::storage::error::StorageResult;
 use crate::storage::kv_store::KvStore;
+use parking_lot::RwLock;
+use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
 
 use super::advanced_dependency_manager::{TxDependencyManager, TxHash};
 
@@ -99,10 +99,7 @@ pub struct DependencyEvictionSystem {
 
 impl DependencyEvictionSystem {
     /// Create new eviction system
-    pub fn new(
-        dependency_manager: Arc<TxDependencyManager>,
-        kv_store: Arc<KvStore>,
-    ) -> Self {
+    pub fn new(dependency_manager: Arc<TxDependencyManager>, kv_store: Arc<KvStore>) -> Self {
         Self {
             dependency_manager,
             kv_store,
@@ -135,12 +132,15 @@ impl DependencyEvictionSystem {
             visited.insert(current_tx.clone());
 
             // Get all dependents of current transaction
-            let dependents = self.dependency_manager.get_all_transitive_dependents(&current_tx);
+            let dependents = self
+                .dependency_manager
+                .get_all_transitive_dependents(&current_tx);
 
             for dependent in dependents {
                 // Check if this dependent has other parents that are still valid
                 let ancestors = self.dependency_manager.get_executable_ancestors(&dependent);
-                let has_alternative_parent = ancestors.iter().any(|ancestor| !visited.contains(ancestor));
+                let has_alternative_parent =
+                    ancestors.iter().any(|ancestor| !visited.contains(ancestor));
 
                 if has_alternative_parent {
                     // This transaction has other valid parents, so preserve it
@@ -227,7 +227,9 @@ impl DependencyEvictionSystem {
     /// Check if evicting a transaction would orphan dependents
     /// Returns dependents that would be orphaned
     pub fn get_orphaned_dependents(&self, tx_hash: &TxHash) -> StorageResult<Vec<TxHash>> {
-        let dependents = self.dependency_manager.get_all_transitive_dependents(tx_hash);
+        let dependents = self
+            .dependency_manager
+            .get_all_transitive_dependents(tx_hash);
         let mut orphaned = Vec::new();
 
         for dependent in dependents {
@@ -254,7 +256,8 @@ impl DependencyEvictionSystem {
     /// Get recent eviction records
     pub fn get_recent_evictions(&self, limit: usize) -> Vec<EvictionRecord> {
         let stats = self.stats.read();
-        stats.recent_evictions
+        stats
+            .recent_evictions
             .iter()
             .rev()
             .take(limit)
@@ -265,8 +268,6 @@ impl DependencyEvictionSystem {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_eviction_system_creation() {
         // Placeholder test - integration tests will verify functionality

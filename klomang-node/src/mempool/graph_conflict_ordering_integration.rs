@@ -1,5 +1,5 @@
 //! Integration layer between GraphConflictOrderingEngine and TransactionPool
-//! 
+//!
 //! This module provides integration utilities for:
 //! - Syncing conflict graph with mempool state
 //! - Building canonical blocks with deterministic ordering
@@ -11,7 +11,7 @@ use std::sync::Arc;
 use klomang_core::core::crypto::Hash;
 use klomang_core::core::state::transaction::Transaction;
 
-use super::graph_conflict_ordering::{GraphConflictOrderingEngine, CanonicalOrderingResult};
+use super::graph_conflict_ordering::{CanonicalOrderingResult, GraphConflictOrderingEngine};
 use crate::storage::kv_store::KvStore;
 
 /// Configuration for conflict & ordering integration
@@ -19,16 +19,16 @@ use crate::storage::kv_store::KvStore;
 pub struct ConflictOrderingIntegrationConfig {
     /// Enable UTXO state validation from on-chain storage
     pub validate_utxo_state: bool,
-    
+
     /// Enable cascade validation when removing transactions
     pub enable_cascade_validation: bool,
-    
+
     /// Maximum transactions to process in one ordering computation
     pub max_ordering_batch: usize,
-    
+
     /// Fee weight for priority scoring (0.0-1.0)
     pub fee_weight: f64,
-    
+
     /// Age weight for priority scoring (0.0-1.0)
     pub age_weight: f64,
 }
@@ -59,16 +59,16 @@ pub struct UtxoValidationResult {
 pub struct BlockBuildingResult {
     /// Ordered transaction hashes for block
     pub transactions: Vec<Vec<u8>>,
-    
+
     /// Topological layers for parallel block validation
     pub parallel_layers: Vec<Vec<Vec<u8>>>,
-    
+
     /// Total fees
     pub total_fees: u64,
-    
+
     /// Block weight estimate
     pub total_weight: usize,
-    
+
     /// Transactions excluded due to conflicts
     pub excluded_transactions: Vec<Vec<u8>>,
 }
@@ -85,7 +85,7 @@ impl ConflictOrderingIntegration {
     pub fn new(config: ConflictOrderingIntegrationConfig, kv_store: Option<Arc<KvStore>>) -> Self {
         let mut engine = GraphConflictOrderingEngine::new(kv_store.clone());
         engine.set_priority_weights(config.fee_weight, config.age_weight);
-        
+
         Self {
             engine,
             config,
@@ -101,10 +101,12 @@ impl ConflictOrderingIntegration {
         fee: u64,
         arrival_time_ms: u64,
     ) -> Result<ConflictDetectionResult, String> {
-        let conflicts = self.engine.register_transaction(tx, tx_hash.clone(), fee, arrival_time_ms)?;
-        
+        let conflicts =
+            self.engine
+                .register_transaction(tx, tx_hash.clone(), fee, arrival_time_ms)?;
+
         let has_double_spend = self.engine.detect_double_spend(&tx_hash)?;
-        
+
         Ok(ConflictDetectionResult {
             tx_hash,
             detected_conflicts: conflicts,
@@ -134,7 +136,7 @@ impl ConflictOrderingIntegration {
                 // Check if input exists in UTXO set
                 // This would normally query the kv_store for UTXO state
                 // For now, we mark it as a placeholder validation point
-                
+
                 if let Err(e) = validate_input_existence(kv_store, &input.prev_tx) {
                     validation_errors.push(format!("UTXO validation error: {}", e));
                 }
@@ -161,7 +163,7 @@ impl ConflictOrderingIntegration {
         max_block_weight: usize,
     ) -> Result<BlockBuildingResult, String> {
         let ordering = self.engine.compute_canonical_order()?;
-        
+
         let mut transactions = Vec::new();
         let mut total_fees = 0u64;
         let mut total_weight = 0usize;
@@ -194,7 +196,8 @@ impl ConflictOrderingIntegration {
 
         // Build parallel layers based on canonical ordering
         // Filter to include only layers that have transactions in the final block
-        let parallel_layers = ordering.parallel_groups
+        let parallel_layers = ordering
+            .parallel_groups
             .into_iter()
             .filter(|layer| layer.iter().any(|tx| transactions.contains(tx)))
             .collect();
@@ -219,7 +222,10 @@ impl ConflictOrderingIntegration {
     }
 
     /// Remove transaction and cascade effects
-    pub fn remove_transaction_cascade(&self, tx_hash: &[u8]) -> Result<CascadeRemovalResult, String> {
+    pub fn remove_transaction_cascade(
+        &self,
+        tx_hash: &[u8],
+    ) -> Result<CascadeRemovalResult, String> {
         let removed = self.engine.remove_transaction_cascade(tx_hash)?;
 
         Ok(CascadeRemovalResult {
@@ -287,8 +293,8 @@ fn validate_input_existence(_kv_store: &Arc<KvStore>, tx_hash: &Hash) -> Result<
     // 3. Return error if checks fail
 
     // For now, always succeed since we're in a mock environment
-    let _hash_bytes = bincode::serialize(tx_hash)
-        .map_err(|e| format!("Serialization error: {}", e))?;
+    let _hash_bytes =
+        bincode::serialize(tx_hash).map_err(|e| format!("Serialization error: {}", e))?;
 
     Ok(())
 }
@@ -300,7 +306,7 @@ mod tests {
     #[test]
     fn test_integration_config_default() {
         let config = ConflictOrderingIntegrationConfig::default();
-        
+
         assert!(config.validate_utxo_state);
         assert!(config.enable_cascade_validation);
         assert!(config.fee_weight > 0.0);
@@ -311,7 +317,7 @@ mod tests {
     fn test_integration_creation() {
         let config = ConflictOrderingIntegrationConfig::default();
         let integration = ConflictOrderingIntegration::new(config, None);
-        
+
         assert_eq!(integration.get_stats().transaction_count, 0);
     }
 
@@ -319,13 +325,13 @@ mod tests {
     fn test_utxo_validation_disabled() {
         let mut config = ConflictOrderingIntegrationConfig::default();
         config.validate_utxo_state = false;
-        
+
         let integration = ConflictOrderingIntegration::new(config, None);
-        
+
         // Create dummy transaction
         let tx = create_dummy_transaction();
         let result = integration.validate_utxo_state(&tx).unwrap();
-        
+
         assert!(result.is_valid);
         assert_eq!(result.validation_errors.len(), 0);
     }
@@ -334,7 +340,7 @@ mod tests {
     fn test_block_building_empty() {
         let config = ConflictOrderingIntegrationConfig::default();
         let integration = ConflictOrderingIntegration::new(config, None);
-        
+
         let result = integration.build_block_canonical(1000000).unwrap();
         assert_eq!(result.transactions.len(), 0);
     }

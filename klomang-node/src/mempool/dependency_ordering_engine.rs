@@ -9,11 +9,11 @@
 //! - Support for both adjacency list and adjacency matrix representations
 //! - Thread-safe concurrent access using parking_lot::RwLock
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
-use parking_lot::RwLock;
 use crate::storage::error::StorageResult;
 use crate::storage::kv_store::KvStore;
+use parking_lot::RwLock;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 use super::advanced_dependency_manager::{TxDependencyManager, TxHash};
 
@@ -65,10 +65,7 @@ pub struct DependencyOrderingEngine {
 
 impl DependencyOrderingEngine {
     /// Create new topological ordering engine
-    pub fn new(
-        dependency_manager: Arc<TxDependencyManager>,
-        kv_store: Arc<KvStore>,
-    ) -> Self {
+    pub fn new(dependency_manager: Arc<TxDependencyManager>, kv_store: Arc<KvStore>) -> Self {
         Self {
             dependency_manager,
             kv_store,
@@ -197,7 +194,10 @@ impl DependencyOrderingEngine {
         let total_edges: usize = adj_list.values().map(|children| children.len()).sum();
 
         let root_transactions = in_degree.values().filter(|&&deg| deg == 0).count();
-        let leaf_transactions = adj_list.values().filter(|children| children.is_empty()).count();
+        let leaf_transactions = adj_list
+            .values()
+            .filter(|children| children.is_empty())
+            .count();
 
         // Calculate max depth
         let mut max_depth = 0u32;
@@ -317,8 +317,6 @@ impl DependencyOrderingEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_topological_ordering_engine_creation() {
         // Placeholder test - integration tests will verify functionality

@@ -9,21 +9,21 @@ use std::sync::Arc;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
 /// Result of transaction validation
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValidationResult {
     /// All inputs are available and valid
     Valid,
-    
+
     /// One or more inputs are missing from UTXO storage
     MissingInputs(Vec<usize>),
-    
+
     /// Transaction failed validation due to double-spend
     DoubleSpent,
-    
+
     /// Input UTXO was not found in storage
     InputNotFound(usize),
 }
@@ -55,8 +55,9 @@ impl PoolValidator {
 
         // Check each input against UTXO storage
         for (index, input) in tx.inputs.iter().enumerate() {
-            let prev_tx_bytes = bincode::serialize(&input.prev_tx)
-                .map_err(|e| crate::storage::error::StorageError::SerializationError(e.to_string()))?;
+            let prev_tx_bytes = bincode::serialize(&input.prev_tx).map_err(|e| {
+                crate::storage::error::StorageError::SerializationError(e.to_string())
+            })?;
 
             // Check if output exists in UTXO set
             let exists = kv_store.utxo_exists(&prev_tx_bytes, input.index)?;
@@ -83,7 +84,8 @@ impl PoolValidator {
 
     /// Get the UTXOs required by this transaction
     pub fn get_required_utxos(&self, tx: &Transaction) -> Vec<(Vec<u8>, u32)> {
-        tx.inputs.iter()
+        tx.inputs
+            .iter()
             .map(|input| {
                 let tx_bytes = bincode::serialize(&input.prev_tx).unwrap_or_default();
                 (tx_bytes, input.index)
@@ -105,7 +107,7 @@ impl PoolValidator {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{TxInput, TxOutput, SigHashType};
+    use klomang_core::core::state::transaction::{SigHashType, TxInput, TxOutput};
 
     fn create_validator_with_storage(kv_store: Arc<KvStore>) -> PoolValidator {
         PoolValidator::new(Some(kv_store))
@@ -114,21 +116,17 @@ mod tests {
     fn create_test_transaction_with_inputs() -> Transaction {
         Transaction {
             id: Hash::new(&[1u8; 32]),
-            inputs: vec![
-                TxInput {
-                    prev_tx: Hash::new(&[2u8; 32]),
-                    index: 0,
-                    signature: vec![],
-                    pubkey: vec![],
-                    sighash_type: SigHashType::All,
-                },
-            ],
-            outputs: vec![
-                TxOutput {
-                    value: 5000,
-                    pubkey_hash: Hash::new(&[3u8; 32]),
-                },
-            ],
+            inputs: vec![TxInput {
+                prev_tx: Hash::new(&[2u8; 32]),
+                index: 0,
+                signature: vec![],
+                pubkey: vec![],
+                sighash_type: SigHashType::All,
+            }],
+            outputs: vec![TxOutput {
+                value: 5000,
+                pubkey_hash: Hash::new(&[3u8; 32]),
+            }],
             execution_payload: vec![],
             contract_address: None,
             gas_limit: 0,
@@ -140,23 +138,19 @@ mod tests {
 
     #[test]
     fn test_coinbase_always_valid() {
-        let cache = Arc::new(
-            crate::storage::cache::StorageCacheLayer::new(
-                crate::storage::db::StorageDb::new("./.test_coinbase").unwrap()
-            )
-        );
+        let cache = Arc::new(crate::storage::cache::StorageCacheLayer::new(
+            crate::storage::db::StorageDb::new("./.test_coinbase").unwrap(),
+        ));
         let kv_store = Arc::new(KvStore::new(cache));
         let validator = create_validator_with_storage(kv_store);
 
         let coinbase_tx = Transaction {
             id: Hash::new(&[1u8; 32]),
             inputs: vec![], // Coinbase has no inputs
-            outputs: vec![
-                TxOutput {
-                    value: 5000,
-                    pubkey_hash: Hash::new(&[2u8; 32]),
-                },
-            ],
+            outputs: vec![TxOutput {
+                value: 5000,
+                pubkey_hash: Hash::new(&[2u8; 32]),
+            }],
             execution_payload: vec![],
             contract_address: None,
             gas_limit: 0,
@@ -174,13 +168,11 @@ mod tests {
     #[test]
     fn test_required_utxos() {
         let validator = PoolValidator {
-            kv_store: Some(Arc::new(KvStore::new(
-                Arc::new(
-                    crate::storage::cache::StorageCacheLayer::new(
-                        crate::storage::db::StorageDb::new("./.test_utxos").unwrap()
-                    )
-                )
-            ))),
+            kv_store: Some(Arc::new(KvStore::new(Arc::new(
+                crate::storage::cache::StorageCacheLayer::new(
+                    crate::storage::db::StorageDb::new("./.test_utxos").unwrap(),
+                ),
+            )))),
         };
 
         let tx = create_test_transaction_with_inputs();

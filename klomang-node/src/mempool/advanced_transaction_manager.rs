@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
-use super::advanced_conflicts::{ConflictMap, TxHash, ConflictType};
+use super::advanced_conflicts::{ConflictMap, ConflictType, TxHash};
 use super::dependency_graph::DependencyGraph;
 use super::pool::TransactionPool;
 
@@ -20,21 +20,11 @@ pub type ManagerResult<T> = Result<T, ManagerError>;
 /// Errors that can occur in transaction management
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ManagerError {
-    ConflictDetected {
-        msg: String,
-    },
-    DependencyError {
-        msg: String,
-    },
-    StorageError {
-        msg: String,
-    },
-    InvalidTransaction {
-        msg: String,
-    },
-    ResolutionFailed {
-        msg: String,
-    },
+    ConflictDetected { msg: String },
+    DependencyError { msg: String },
+    StorageError { msg: String },
+    InvalidTransaction { msg: String },
+    ResolutionFailed { msg: String },
 }
 
 impl std::fmt::Display for ManagerError {
@@ -98,10 +88,9 @@ impl AdvancedTransactionManager {
         size_bytes: usize,
     ) -> ManagerResult<TransactionAdditionResult> {
         // Serialize transaction hash
-        let tx_bytes = bincode::serialize(&tx.id)
-            .map_err(|e| ManagerError::StorageError {
-                msg: format!("Serialization failed: {}", e),
-            })?;
+        let tx_bytes = bincode::serialize(&tx.id).map_err(|e| ManagerError::StorageError {
+            msg: format!("Serialization failed: {}", e),
+        })?;
         let tx_hash = TxHash::new(tx_bytes);
 
         // Register in dependency graph
@@ -126,12 +115,13 @@ impl AdvancedTransactionManager {
                 let reason = format!("Indirect conflict from {}", format_hash(&original));
                 self.graph.mark_conflict(&original, reason).ok();
                 Err(ManagerError::ConflictDetected {
-                    msg: format!("Indirect conflict with {} affected transactions", affected.len()),
+                    msg: format!(
+                        "Indirect conflict with {} affected transactions",
+                        affected.len()
+                    ),
                 })
             }
-            Err(e) => Err(ManagerError::ConflictDetected {
-                msg: e,
-            }),
+            Err(e) => Err(ManagerError::ConflictDetected { msg: e }),
         }
     }
 
@@ -146,15 +136,18 @@ impl AdvancedTransactionManager {
         new_size: usize,
     ) -> ManagerResult<TransactionAdditionResult> {
         // Get existing transaction from pool
-        let existing_entry = self.pool.get(existing_tx_hash.as_bytes())
-            .ok_or(ManagerError::ConflictDetected {
-                msg: "Cannot find existing conflicting transaction".to_string(),
-            })?;
+        let existing_entry =
+            self.pool
+                .get(existing_tx_hash.as_bytes())
+                .ok_or(ManagerError::ConflictDetected {
+                    msg: "Cannot find existing conflicting transaction".to_string(),
+                })?;
 
-        let conflicting_entry = self.pool.get(conflicting_tx_hash.as_bytes())
-            .ok_or(ManagerError::ConflictDetected {
+        let conflicting_entry = self.pool.get(conflicting_tx_hash.as_bytes()).ok_or(
+            ManagerError::ConflictDetected {
                 msg: "Cannot find conflicting transaction".to_string(),
-            })?;
+            },
+        )?;
 
         let existing_tx = &existing_entry.transaction;
         let existing_fee = existing_entry.total_fee;
@@ -165,16 +158,19 @@ impl AdvancedTransactionManager {
         let conflicting_size = conflicting_entry.size_bytes;
 
         // Resolve against existing
-        let resolution_existing = self.conflicts.resolve_conflict(
-            new_tx,
-            existing_tx,
-            new_tx_hash,
-            existing_tx_hash,
-            new_size,
-            existing_size,
-            new_fee,
-            existing_fee,
-        ).map_err(|e| ManagerError::ResolutionFailed { msg: e })?;
+        let resolution_existing = self
+            .conflicts
+            .resolve_conflict(
+                new_tx,
+                existing_tx,
+                new_tx_hash,
+                existing_tx_hash,
+                new_size,
+                existing_size,
+                new_fee,
+                existing_fee,
+            )
+            .map_err(|e| ManagerError::ResolutionFailed { msg: e })?;
 
         let mut evicted = Vec::new();
 
@@ -192,16 +188,19 @@ impl AdvancedTransactionManager {
 
             // Also check against conflicting if different
             if conflicting_tx_hash != existing_tx_hash {
-                let resolution_conflicting = self.conflicts.resolve_conflict(
-                    new_tx,
-                    conflicting_tx,
-                    new_tx_hash,
-                    conflicting_tx_hash,
-                    new_size,
-                    conflicting_size,
-                    new_fee,
-                    conflicting_fee,
-                ).map_err(|e| ManagerError::ResolutionFailed { msg: e })?;
+                let resolution_conflicting = self
+                    .conflicts
+                    .resolve_conflict(
+                        new_tx,
+                        conflicting_tx,
+                        new_tx_hash,
+                        conflicting_tx_hash,
+                        new_size,
+                        conflicting_size,
+                        new_fee,
+                        conflicting_fee,
+                    )
+                    .map_err(|e| ManagerError::ResolutionFailed { msg: e })?;
 
                 if resolution_conflicting.winner == *new_tx_hash {
                     evicted.push(conflicting_tx_hash.clone());
@@ -241,10 +240,9 @@ impl AdvancedTransactionManager {
         // In production, this would validate against klomang-core signature schemes
 
         // Add to pool
-        self.pool.add_transaction(tx.clone(), fee, size_bytes)
-            .map_err(|e| ManagerError::InvalidTransaction {
-                msg: e.to_string(),
-            })?;
+        self.pool
+            .add_transaction(tx.clone(), fee, size_bytes)
+            .map_err(|e| ManagerError::InvalidTransaction { msg: e.to_string() })?;
 
         Ok(TransactionAdditionResult {
             added: true,
@@ -260,7 +258,7 @@ impl AdvancedTransactionManager {
         // For now, we simply return Ok as placeholder for storage layer integration
         // The actual verification would be: self.kv_store.utxo_exists(outpoint)?
         let _tx_bytes = bincode::serialize(tx_hash)?;
-        
+
         // Placeholder: Storage layer verification would go here
         Ok(())
     }
@@ -271,11 +269,13 @@ impl AdvancedTransactionManager {
         let affected = self.graph.find_affected_downstream(tx_hash);
 
         // Remove from conflict map
-        self.conflicts.remove_transaction(tx_hash)
+        self.conflicts
+            .remove_transaction(tx_hash)
             .map_err(|e| ManagerError::ConflictDetected { msg: e })?;
 
         // Remove from graph
-        self.graph.remove_transaction(tx_hash)
+        self.graph
+            .remove_transaction(tx_hash)
             .map_err(|e| ManagerError::DependencyError { msg: e })?;
 
         // Remove from pool
@@ -365,9 +365,12 @@ pub struct ConflictStatus {
 fn format_hash(tx_hash: &TxHash) -> String {
     let bytes = tx_hash.as_bytes();
     if bytes.len() >= 4 {
-        format!("TX[{:02x}{:02x}...{:02x}{:02x}]", 
-            bytes[0], bytes[1],
-            bytes[bytes.len()-2], bytes[bytes.len()-1]
+        format!(
+            "TX[{:02x}{:02x}...{:02x}{:02x}]",
+            bytes[0],
+            bytes[1],
+            bytes[bytes.len() - 2],
+            bytes[bytes.len() - 1]
         )
     } else if bytes.is_empty() {
         "TX[empty]".to_string()
@@ -394,7 +397,7 @@ mod tests {
         let pool = Arc::new(TransactionPool::new(PoolConfig::default()));
 
         let manager = AdvancedTransactionManager::new(conflicts, graph, pool, kv_store);
-        
+
         let analysis = manager.analyze_conflicts();
         assert!(analysis.is_ok());
     }

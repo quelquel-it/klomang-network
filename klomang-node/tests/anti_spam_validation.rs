@@ -5,9 +5,9 @@
 //! - Token bucket rate limiting per source
 //! - Fee threshold persistence
 
-use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
 use klomang_core::core::crypto::Hash;
-use klomang_node::mempool::{PoolConfig, FeeFilter};
+use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput, TxOutput};
+use klomang_node::mempool::{FeeFilter, PoolConfig};
 
 fn create_test_tx(id: u8, pubkey: Vec<u8>) -> Transaction {
     Transaction {
@@ -66,9 +66,18 @@ fn test_pool_config_anti_spam_fields() {
     println!("Testing PoolConfig Anti-Spam Fields:");
     let config = PoolConfig::default();
     println!("   min_fee_rate: {} sat/B", config.min_fee_rate);
-    println!("   dynamic_fee_bump_percent: {}%", config.dynamic_fee_bump_percent);
-    println!("   max_transactions_per_source: {}", config.max_transactions_per_source);
-    println!("   rate_limit_window_secs: {}s", config.rate_limit_window_secs);
+    println!(
+        "   dynamic_fee_bump_percent: {}%",
+        config.dynamic_fee_bump_percent
+    );
+    println!(
+        "   max_transactions_per_source: {}",
+        config.max_transactions_per_source
+    );
+    println!(
+        "   rate_limit_window_secs: {}s",
+        config.rate_limit_window_secs
+    );
 
     // Assert some reasonable defaults
     assert!(config.min_fee_rate > 0);

@@ -18,9 +18,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::RwLock;
 
-use crate::storage::kv_store::KvStore;
-use crate::storage::error::StorageResult;
 use super::recursive_dependency_manager::RecursiveDependencyManager;
+use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
 /// Type alias for transaction hash
 pub type TxHash = Vec<u8>;
@@ -88,9 +88,8 @@ impl TransactionPriority {
         // Descendant count: higher is better (opens path for more txs)
         // Invert for max-heap: more children → lower value → higher priority
         let max_descendants = 100u32;
-        let descendant_count_priority = max_descendants.saturating_sub(
-            immediate_children_count.min(max_descendants)
-        );
+        let descendant_count_priority =
+            max_descendants.saturating_sub(immediate_children_count.min(max_descendants));
 
         Self {
             fee_rate_priority,
@@ -106,11 +105,11 @@ impl TransactionPriority {
     /// Tuple comparison is lexicographic, implementing multi-factor ordering
     pub fn score(&self) -> (u64, u64, u32, u32, &[u8]) {
         (
-            self.fee_rate_priority,      // Primary: fee rate (highest value = best)
-            self.age_priority,            // Secondary: age (oldest first for fairness)
-            self.depth_priority,          // Tertiary: depth (lower first for efficiency)
+            self.fee_rate_priority,         // Primary: fee rate (highest value = best)
+            self.age_priority,              // Secondary: age (oldest first for fairness)
+            self.depth_priority,            // Tertiary: depth (lower first for efficiency)
             self.descendant_count_priority, // Quaternary: descendants (more = better)
-            &self.tx_hash,                // Tie-breaker: lexicographical hash
+            &self.tx_hash,                  // Tie-breaker: lexicographical hash
         )
     }
 
@@ -454,9 +453,8 @@ impl PriorityPool {
                 if let Ok(descendants) = self.dependency_manager.get_immediate_children(&tx) {
                     for descendant in descendants {
                         if candidates.contains(&descendant) && !added.contains(&descendant) {
-                            if let Ok(parents) = self
-                                .dependency_manager
-                                .get_immediate_parents(&descendant)
+                            if let Ok(parents) =
+                                self.dependency_manager.get_immediate_parents(&descendant)
                             {
                                 if parents.iter().all(|p| added.contains(p)) {
                                     queue.push_back(descendant);
@@ -505,8 +503,6 @@ impl PriorityPool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_priority_pool_creation() {
         // Placeholder for integration testing

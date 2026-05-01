@@ -8,13 +8,13 @@
 //! Uses BTreeMap for each dimension to support O(log n) range queries.
 //! All searches return vectors of matching transactions sorted by dimension.
 
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use crate::storage::error::StorageResult;
 use super::recursive_dependency_tracker::TxHash;
+use crate::storage::error::StorageResult;
 
 /// Transaction indexed across multiple dimensions
 #[derive(Clone, Debug)]
@@ -131,7 +131,10 @@ impl MultiDimensionalIndex {
         // Insert into economic index (inverted for descending order)
         {
             let mut eco = self.economic_index.write();
-            eco.insert((std::cmp::Reverse(tx.fee_rate), tx_hash.clone()), tx.clone());
+            eco.insert(
+                (std::cmp::Reverse(tx.fee_rate), tx_hash.clone()),
+                tx.clone(),
+            );
         }
 
         // Insert into temporal index (ascending = oldest first)
@@ -196,10 +199,10 @@ impl MultiDimensionalIndex {
     /// Update transaction in all indexes
     pub fn update(&self, tx: IndexedTransaction) -> StorageResult<()> {
         let tx_hash = tx.tx_hash.clone();
-        
+
         // Remove old entry
         self.remove(&tx_hash)?;
-        
+
         // Insert new entry
         self.insert(tx)?;
 
@@ -229,9 +232,9 @@ impl MultiDimensionalIndex {
         max_fee: u64,
     ) -> StorageResult<Vec<IndexedTransaction>> {
         let eco = self.economic_index.read();
-        
+
         let mut results = Vec::new();
-        
+
         // BTreeMap is ordered by (Reverse(fee_rate), tx_hash)
         // So we iterate and collect transactions in the range
         for (_key, tx) in eco.iter() {
@@ -256,10 +259,7 @@ impl MultiDimensionalIndex {
     /// Time Complexity: O(k + log n) where k = limit
     pub fn query_economic_top_n(&self, limit: usize) -> StorageResult<Vec<IndexedTransaction>> {
         let eco = self.economic_index.read();
-        let results: Vec<_> = eco.iter()
-            .take(limit)
-            .map(|(_, tx)| tx.clone())
-            .collect();
+        let results: Vec<_> = eco.iter().take(limit).map(|(_, tx)| tx.clone()).collect();
 
         // Update stats
         {
@@ -276,13 +276,11 @@ impl MultiDimensionalIndex {
     /// sorted by arrival time (ascending, oldest first).
     ///
     /// Time Complexity: O(log n + k) where k is result count
-    pub fn query_temporal_before(
-        &self,
-        timestamp: u64,
-    ) -> StorageResult<Vec<IndexedTransaction>> {
+    pub fn query_temporal_before(&self, timestamp: u64) -> StorageResult<Vec<IndexedTransaction>> {
         let temp = self.temporal_index.read();
-        
-        let results: Vec<_> = temp.iter()
+
+        let results: Vec<_> = temp
+            .iter()
             .take_while(|((arrival_time, _), _)| *arrival_time <= timestamp)
             .map(|(_, tx)| tx.clone())
             .collect();
@@ -302,13 +300,11 @@ impl MultiDimensionalIndex {
     /// sorted by arrival time (ascending).
     ///
     /// Time Complexity: O(log n + k) where k is result count
-    pub fn query_temporal_after(
-        &self,
-        timestamp: u64,
-    ) -> StorageResult<Vec<IndexedTransaction>> {
+    pub fn query_temporal_after(&self, timestamp: u64) -> StorageResult<Vec<IndexedTransaction>> {
         let temp = self.temporal_index.read();
-        
-        let results: Vec<_> = temp.iter()
+
+        let results: Vec<_> = temp
+            .iter()
             .skip_while(|((arrival_time, _), _)| *arrival_time <= timestamp)
             .map(|(_, tx)| tx.clone())
             .collect();
@@ -333,9 +329,12 @@ impl MultiDimensionalIndex {
         end_time: u64,
     ) -> StorageResult<Vec<IndexedTransaction>> {
         let temp = self.temporal_index.read();
-        
-        let results: Vec<_> = temp.iter()
-            .filter(|((arrival_time, _), _)| *arrival_time >= start_time && *arrival_time <= end_time)
+
+        let results: Vec<_> = temp
+            .iter()
+            .filter(|((arrival_time, _), _)| {
+                *arrival_time >= start_time && *arrival_time <= end_time
+            })
             .map(|(_, tx)| tx.clone())
             .collect();
 
@@ -361,8 +360,9 @@ impl MultiDimensionalIndex {
         min_dependencies: u32,
     ) -> StorageResult<Vec<IndexedTransaction>> {
         let struct_idx = self.structural_index.read();
-        
-        let results: Vec<_> = struct_idx.iter()
+
+        let results: Vec<_> = struct_idx
+            .iter()
             .take_while(|((reversed_count, _), _)| reversed_count.0 >= min_dependencies)
             .map(|(_, tx)| tx.clone())
             .collect();
@@ -381,10 +381,14 @@ impl MultiDimensionalIndex {
     /// Returns the N transactions with the most immediate children/dependents.
     ///
     /// Time Complexity: O(k + log n) where k = limit
-    pub fn query_structural_top_hubs(&self, limit: usize) -> StorageResult<Vec<IndexedTransaction>> {
+    pub fn query_structural_top_hubs(
+        &self,
+        limit: usize,
+    ) -> StorageResult<Vec<IndexedTransaction>> {
         let struct_idx = self.structural_index.read();
-        
-        let results: Vec<_> = struct_idx.iter()
+
+        let results: Vec<_> = struct_idx
+            .iter()
             .take(limit)
             .map(|(_, tx)| tx.clone())
             .collect();
@@ -417,14 +421,15 @@ impl MultiDimensionalIndex {
         min_dependencies: u32,
     ) -> StorageResult<Vec<IndexedTransaction>> {
         let by_hash = self.by_hash.read();
-        
-        let results: Vec<_> = by_hash.iter()
+
+        let results: Vec<_> = by_hash
+            .iter()
             .filter(|(_, tx)| {
-                tx.fee_rate >= min_fee &&
-                tx.fee_rate <= max_fee &&
-                tx.arrival_time >= start_time &&
-                tx.arrival_time <= end_time &&
-                tx.dependency_count >= min_dependencies
+                tx.fee_rate >= min_fee
+                    && tx.fee_rate <= max_fee
+                    && tx.arrival_time >= start_time
+                    && tx.arrival_time <= end_time
+                    && tx.dependency_count >= min_dependencies
             })
             .map(|(_, tx)| tx.clone())
             .collect();
@@ -465,7 +470,7 @@ impl MultiDimensionalIndex {
         self.economic_index.write().clear();
         self.temporal_index.write().clear();
         self.structural_index.write().clear();
-        
+
         let mut stats = self.stats.write();
         *stats = MultiDimensionalIndexStats::default();
 
@@ -483,19 +488,14 @@ impl Default for MultiDimensionalIndex {
 mod tests {
     use super::*;
 
-    fn create_tx(
-        hash: Vec<u8>,
-        fee_rate: u64,
-        arrival: u64,
-        deps: u32,
-    ) -> IndexedTransaction {
+    fn create_tx(hash: Vec<u8>, fee_rate: u64, arrival: u64, deps: u32) -> IndexedTransaction {
         IndexedTransaction::new(hash, fee_rate, arrival, deps, 250, fee_rate * 250)
     }
 
     #[test]
     fn test_economic_dimension() {
         let index = MultiDimensionalIndex::new();
-        
+
         // Insert transactions with different fees
         index.insert(create_tx(vec![1], 50, 1000, 0)).unwrap();
         index.insert(create_tx(vec![2], 100, 1000, 0)).unwrap();
@@ -504,7 +504,7 @@ mod tests {
         // Query range [60, 110] should return 2 and 3
         let results = index.query_economic_range(60, 110).unwrap();
         assert_eq!(results.len(), 2);
-        
+
         // First should be highest fee (100)
         assert!(results[0].fee_rate >= results[1].fee_rate);
     }
@@ -512,7 +512,7 @@ mod tests {
     #[test]
     fn test_temporal_dimension() {
         let index = MultiDimensionalIndex::new();
-        
+
         index.insert(create_tx(vec![1], 50, 1000, 0)).unwrap();
         index.insert(create_tx(vec![2], 50, 2000, 0)).unwrap();
         index.insert(create_tx(vec![3], 50, 3000, 0)).unwrap();
@@ -520,7 +520,7 @@ mod tests {
         // Query transactions before time 2500 should return 1 and 2
         let results = index.query_temporal_before(2500).unwrap();
         assert_eq!(results.len(), 2);
-        
+
         // Should be ordered oldest first
         assert!(results[0].arrival_time <= results[1].arrival_time);
     }
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn test_structural_dimension() {
         let index = MultiDimensionalIndex::new();
-        
+
         index.insert(create_tx(vec![1], 50, 1000, 1)).unwrap();
         index.insert(create_tx(vec![2], 50, 1000, 5)).unwrap();
         index.insert(create_tx(vec![3], 50, 1000, 3)).unwrap();
@@ -536,7 +536,7 @@ mod tests {
         // Query for transactions with at least 2 dependents
         let results = index.query_structural_min_dependents(2).unwrap();
         assert_eq!(results.len(), 2);
-        
+
         // Should be ordered by dependency count descending
         assert!(results[0].dependency_count >= results[1].dependency_count);
     }
@@ -544,14 +544,14 @@ mod tests {
     #[test]
     fn test_combined_query() {
         let index = MultiDimensionalIndex::new();
-        
+
         index.insert(create_tx(vec![1], 50, 1000, 0)).unwrap();
         index.insert(create_tx(vec![2], 100, 2000, 2)).unwrap();
         index.insert(create_tx(vec![3], 75, 3000, 5)).unwrap();
 
         // Query: fee [60-110], time [1500-3500], min_deps=1
         let results = index.query_combined(60, 110, 1500, 3500, 1).unwrap();
-        
+
         // Should match only transaction 3 (100 fee, time 3000, 5 deps)
         // Actually transaction 2 has 100 fee but time 2000, 2 deps - matches!
         // Correct: transaction 3 has 75 fee, time 3000, 5 deps - matches!

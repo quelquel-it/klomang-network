@@ -5,9 +5,9 @@
 //! Setiap transaksi dibungkus dalam Arc untuk memungkinkan zero-copy read sharing
 //! across multiple threads.
 
-use std::sync::Arc;
 use dashmap::DashMap;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use klomang_core::core::state::transaction::Transaction;
 
@@ -140,7 +140,13 @@ impl ParallelTransactionIndex {
     }
 
     /// Tambahkan transaksi ke index
-    pub fn insert(&self, tx_hash: Vec<u8>, tx: Transaction, fee: u64, size_bytes: usize) -> Result<(), String> {
+    pub fn insert(
+        &self,
+        tx_hash: Vec<u8>,
+        tx: Transaction,
+        fee: u64,
+        size_bytes: usize,
+    ) -> Result<(), String> {
         // Check size limit
         if self.transactions.len() >= self.config.max_transactions {
             return Err("Transaction index is full".to_string());
@@ -171,7 +177,11 @@ impl ParallelTransactionIndex {
     }
 
     /// Update status transaksi
-    pub fn update_status(&self, tx_hash: &[u8], new_status: IndexedTransactionStatus) -> Result<(), String> {
+    pub fn update_status(
+        &self,
+        tx_hash: &[u8],
+        new_status: IndexedTransactionStatus,
+    ) -> Result<(), String> {
         if let Some(mut entry) = self.transactions.get_mut(tx_hash) {
             let old_status = entry.status;
             entry.status = new_status;
@@ -179,10 +189,18 @@ impl ParallelTransactionIndex {
             // Update statistics
             let mut stats = self.stats.write();
             match old_status {
-                IndexedTransactionStatus::Pending => stats.pending_count = stats.pending_count.saturating_sub(1),
-                IndexedTransactionStatus::Validated => stats.validated_count = stats.validated_count.saturating_sub(1),
-                IndexedTransactionStatus::Invalid => stats.invalid_count = stats.invalid_count.saturating_sub(1),
-                IndexedTransactionStatus::Confirmed => stats.confirmed_count = stats.confirmed_count.saturating_sub(1),
+                IndexedTransactionStatus::Pending => {
+                    stats.pending_count = stats.pending_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Validated => {
+                    stats.validated_count = stats.validated_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Invalid => {
+                    stats.invalid_count = stats.invalid_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Confirmed => {
+                    stats.confirmed_count = stats.confirmed_count.saturating_sub(1)
+                }
             }
 
             match new_status {
@@ -203,14 +221,24 @@ impl ParallelTransactionIndex {
         if let Some((_, entry)) = self.transactions.remove(tx_hash) {
             let mut stats = self.stats.write();
             stats.total_transactions = self.transactions.len();
-            
+
             match entry.status {
-                IndexedTransactionStatus::Pending => stats.pending_count = stats.pending_count.saturating_sub(1),
-                IndexedTransactionStatus::Validated => stats.validated_count = stats.validated_count.saturating_sub(1),
-                IndexedTransactionStatus::Invalid => stats.invalid_count = stats.invalid_count.saturating_sub(1),
-                IndexedTransactionStatus::Confirmed => stats.confirmed_count = stats.confirmed_count.saturating_sub(1),
+                IndexedTransactionStatus::Pending => {
+                    stats.pending_count = stats.pending_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Validated => {
+                    stats.validated_count = stats.validated_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Invalid => {
+                    stats.invalid_count = stats.invalid_count.saturating_sub(1)
+                }
+                IndexedTransactionStatus::Confirmed => {
+                    stats.confirmed_count = stats.confirmed_count.saturating_sub(1)
+                }
             }
-            stats.total_memory_bytes = stats.total_memory_bytes.saturating_sub(entry.size_bytes + 64);
+            stats.total_memory_bytes = stats
+                .total_memory_bytes
+                .saturating_sub(entry.size_bytes + 64);
 
             Ok(entry)
         } else {
@@ -272,7 +300,8 @@ impl ParallelTransactionIndex {
 
     /// Get transactions ordered by fee rate (highest first) - snapshot-based
     pub fn get_top_by_fee_rate(&self, limit: usize) -> Vec<Arc<Transaction>> {
-        let mut entries: Vec<_> = self.transactions
+        let mut entries: Vec<_> = self
+            .transactions
             .iter()
             .map(|ref_multi| {
                 let entry = ref_multi.value().clone();
@@ -291,7 +320,8 @@ impl ParallelTransactionIndex {
             .unwrap_or_default()
             .as_nanos() as u64;
 
-        let to_remove: Vec<Vec<u8>> = self.transactions
+        let to_remove: Vec<Vec<u8>> = self
+            .transactions
             .iter()
             .filter(|entry| {
                 let entry_time = entry.value().insertion_time_ns;
@@ -313,23 +343,27 @@ impl ParallelTransactionIndex {
     /// Verify consistency - semua entries valid
     pub fn verify_consistency(&self) -> Result<(), String> {
         let stats = self.stats.read();
-        
-        let actual_pending: usize = self.transactions
+
+        let actual_pending: usize = self
+            .transactions
             .iter()
             .filter(|e| e.value().status == IndexedTransactionStatus::Pending)
             .count();
-        
-        let actual_validated: usize = self.transactions
+
+        let actual_validated: usize = self
+            .transactions
             .iter()
             .filter(|e| e.value().status == IndexedTransactionStatus::Validated)
             .count();
 
-        let actual_invalid: usize = self.transactions
+        let actual_invalid: usize = self
+            .transactions
             .iter()
             .filter(|e| e.value().status == IndexedTransactionStatus::Invalid)
             .count();
 
-        let actual_confirmed: usize = self.transactions
+        let actual_confirmed: usize = self
+            .transactions
             .iter()
             .filter(|e| e.value().status == IndexedTransactionStatus::Confirmed)
             .count();
@@ -385,10 +419,18 @@ mod tests {
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
         index.insert(tx_hash.clone(), tx, 1000, 256).unwrap();
-        assert_eq!(index.get_entry(&tx_hash).unwrap().status, IndexedTransactionStatus::Pending);
+        assert_eq!(
+            index.get_entry(&tx_hash).unwrap().status,
+            IndexedTransactionStatus::Pending
+        );
 
-        index.update_status(&tx_hash, IndexedTransactionStatus::Validated).unwrap();
-        assert_eq!(index.get_entry(&tx_hash).unwrap().status, IndexedTransactionStatus::Validated);
+        index
+            .update_status(&tx_hash, IndexedTransactionStatus::Validated)
+            .unwrap();
+        assert_eq!(
+            index.get_entry(&tx_hash).unwrap().status,
+            IndexedTransactionStatus::Validated
+        );
 
         let stats = index.get_stats();
         assert_eq!(stats.validated_count, 1);
@@ -413,14 +455,18 @@ mod tests {
     #[test]
     fn test_get_by_status() {
         let index = ParallelTransactionIndex::new(ParallelIndexConfig::default());
-        
+
         for i in 0..5 {
             let tx = create_test_transaction();
             let tx_hash = bincode::serialize(&[i as u8]).unwrap();
-            index.insert(tx_hash.clone(), tx, 1000 + i as u64, 256).unwrap();
-            
-            if i % 2 == 0 {
-                index.update_status(&tx_hash, IndexedTransactionStatus::Validated).unwrap();
+            index
+                .insert(tx_hash.clone(), tx, 1000 + i as u64, 256)
+                .unwrap();
+
+            if i % 2 == 1 {
+                index
+                    .update_status(&tx_hash, IndexedTransactionStatus::Validated)
+                    .unwrap();
             }
         }
 
@@ -434,7 +480,7 @@ mod tests {
     #[test]
     fn test_get_top_by_fee_rate() {
         let index = ParallelTransactionIndex::new(ParallelIndexConfig::default());
-        
+
         for i in 0..5 {
             let tx = create_test_transaction();
             let tx_hash = bincode::serialize(&[i as u8]).unwrap();
@@ -456,7 +502,9 @@ mod tests {
         index.insert(tx_hash.clone(), tx, 1000, 256).unwrap();
         assert!(index.verify_consistency().is_ok());
 
-        index.update_status(&tx_hash, IndexedTransactionStatus::Validated).unwrap();
+        index
+            .update_status(&tx_hash, IndexedTransactionStatus::Validated)
+            .unwrap();
         assert!(index.verify_consistency().is_ok());
 
         index.remove(&tx_hash).unwrap();

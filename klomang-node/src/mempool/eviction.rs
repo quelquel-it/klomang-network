@@ -8,16 +8,16 @@ use std::collections::BinaryHeap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::storage::error::StorageResult;
-use super::pool::{TransactionPool, PoolEntry};
+use super::pool::{PoolEntry, TransactionPool};
 use super::status::TransactionStatus;
+use crate::storage::error::StorageResult;
 
 /// Priority score for eviction - lower score = evict first
 #[derive(Clone, Debug)]
 pub struct EvictionScore {
     /// Combined fee rate and time score (lower = evict first)
     score: i128,
-    
+
     /// Transaction hash for deterministic tie-breaking
     tx_hash: Vec<u8>,
 }
@@ -69,7 +69,7 @@ impl Ord for EvictionScore {
             Ordering::Equal => {
                 // Deterministic tie-breaking via hash (lexicographic)
                 other.tx_hash.cmp(&self.tx_hash)
-            },
+            }
             other_ord => other_ord.reverse(), // Reverse to make min-heap
         }
     }
@@ -80,10 +80,10 @@ impl Ord for EvictionScore {
 pub struct EvictionPolicy {
     /// Maximum number of transactions in pool
     pub max_transaction_count: usize,
-    
+
     /// Maximum bytes in pool (estimated)
     pub max_memory_bytes: usize,
-    
+
     /// Evict this many transactions per cycle
     pub batch_size: usize,
 }
@@ -194,7 +194,7 @@ impl EvictionEngine {
     /// Adaptive eviction based on pressure
     pub fn adaptive_eviction(&self, pressure_0_to_1: f64) -> StorageResult<EvictionResult> {
         let mut policy = self.policy.clone();
-        
+
         // Increase eviction aggressiveness under high pressure
         if pressure_0_to_1 > 0.8 {
             policy.batch_size = (policy.batch_size as f64 * 2.0) as usize;
@@ -212,16 +212,16 @@ impl EvictionEngine {
 pub struct EvictionResult {
     /// Whether eviction was successful
     pub success: bool,
-    
+
     /// Number of transactions evicted
     pub evicted_count: usize,
-    
+
     /// Total bytes freed by eviction
     pub evicted_bytes: usize,
-    
+
     /// Total fees from evicted transactions
     pub total_evicted_fees: u64,
-    
+
     /// Hashes of evicted transactions
     pub evicted_hashes: Vec<Vec<u8>>,
 }
@@ -231,10 +231,10 @@ pub struct EvictionResult {
 pub struct MempoolPressure {
     /// Transaction count ratio (0-1)
     pub transaction_pressure: f64,
-    
+
     /// Memory usage ratio (0-1)
     pub memory_pressure: f64,
-    
+
     /// Combined pressure (0-1)
     pub total_pressure: f64,
 }
@@ -244,13 +244,11 @@ impl MempoolPressure {
     pub fn calculate(pool: &TransactionPool, policy: &EvictionPolicy) -> Self {
         let stats = pool.get_stats();
 
-        let transaction_pressure = (stats.total_count as f64)
-            / (policy.max_transaction_count as f64)
-            .max(1.0);
+        let transaction_pressure =
+            (stats.total_count as f64) / (policy.max_transaction_count as f64).max(1.0);
 
-        let memory_pressure = (stats.total_size_bytes as f64)
-            / (policy.max_memory_bytes as f64)
-            .max(1.0);
+        let memory_pressure =
+            (stats.total_size_bytes as f64) / (policy.max_memory_bytes as f64).max(1.0);
 
         let total_pressure = (transaction_pressure + memory_pressure) / 2.0;
 
@@ -293,7 +291,12 @@ impl AgingProcessor {
     ///
     /// Score starts at 1.0 and decays exponentially after 24 hours.
     /// Anti-starvation prevents score from dropping below minimum for old transactions.
-    pub fn calculate_relevance_score(&self, entry_time_ms: u64, current_time_ms: u64, base_fee_rate: u64) -> f64 {
+    pub fn calculate_relevance_score(
+        &self,
+        entry_time_ms: u64,
+        current_time_ms: u64,
+        base_fee_rate: u64,
+    ) -> f64 {
         let age_hours = (current_time_ms.saturating_sub(entry_time_ms)) as f64 / (1000.0 * 3600.0);
 
         // No decay for first 24 hours
@@ -318,18 +321,25 @@ impl AgingProcessor {
     }
 
     /// Get transactions eligible for priority adjustment due to aging
-    pub fn get_aging_adjustments(&self, pool_entries: &[PoolEntry], current_time_ms: u64) -> Vec<(Vec<u8>, f64)> {
+    pub fn get_aging_adjustments(
+        &self,
+        pool_entries: &[PoolEntry],
+        current_time_ms: u64,
+    ) -> Vec<(Vec<u8>, f64)> {
         pool_entries
             .iter()
             .map(|entry| {
-                let tx_hash = bincode::serialize(&entry.transaction.id)
-                    .unwrap_or_default();
+                let tx_hash = bincode::serialize(&entry.transaction.id).unwrap_or_default();
                 let fee_rate = if entry.size_bytes > 0 {
                     entry.total_fee / entry.size_bytes as u64
                 } else {
                     0
                 };
-                let score = self.calculate_relevance_score(entry.arrival_time * 1000, current_time_ms, fee_rate);
+                let score = self.calculate_relevance_score(
+                    entry.arrival_time * 1000,
+                    current_time_ms,
+                    fee_rate,
+                );
                 (tx_hash, score)
             })
             .collect()
@@ -361,7 +371,9 @@ impl EvictionPredictor {
     /// Update historical average fee from recent blocks
     pub fn update_historical_avg(&self) -> Result<(), String> {
         let avg_fee = self.calculate_historical_avg_fee()?;
-        let mut guard = self.historical_avg_fee.write()
+        let mut guard = self
+            .historical_avg_fee
+            .write()
             .map_err(|e| format!("Lock error: {}", e))?;
         *guard = avg_fee;
         Ok(())
@@ -481,11 +493,7 @@ mod tests {
         let score2 = EvictionScore::from_entry(&entry2, 2000);
 
         // Same score - ordering should be deterministic via hash
-        assert_eq!(
-            score1.score == score2.score,
-            true,
-            "Scores should be equal"
-        );
+        assert_eq!(score1.score == score2.score, true, "Scores should be equal");
     }
 
     #[test]

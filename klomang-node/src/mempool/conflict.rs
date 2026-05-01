@@ -11,8 +11,8 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::{Transaction, TxInput};
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
 /// Error types for UTXO conflict management
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -44,8 +44,16 @@ pub enum UtxoConflictError {
 impl std::fmt::Display for UtxoConflictError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UtxoConflictError::UtxoAlreadyClaimed { outpoint, current_fee, new_fee, .. } =>
-                write!(f, "UTXO {} claimed with fees {} vs {}", outpoint, current_fee, new_fee),
+            UtxoConflictError::UtxoAlreadyClaimed {
+                outpoint,
+                current_fee,
+                new_fee,
+                ..
+            } => write!(
+                f,
+                "UTXO {} claimed with fees {} vs {}",
+                outpoint, current_fee, new_fee
+            ),
             UtxoConflictError::UtxoNotFound(s) => write!(f, "UTXO not found: {}", s),
             UtxoConflictError::UtxoAlreadySpent(s) => write!(f, "UTXO already spent: {}", s),
             UtxoConflictError::TransactionNotTracked(_) => write!(f, "Transaction not tracked"),
@@ -82,13 +90,13 @@ impl OutPoint {
 
     /// String representation for logging
     pub fn to_string(&self) -> String {
-        format!(
-            "{}:{}",
-            bincode::serialize(&self.tx_hash)
-                .map(|b| format!("{:x?}", &b[..8.min(b.len())]).replace(", ", ""))
-                .unwrap_or_else(|_| "INVALID".to_string()),
-            self.index
-        )
+        let tx_hash_hex: String = self
+            .tx_hash
+            .iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect();
+
+        format!("{}:{}", tx_hash_hex, self.index)
     }
 }
 
@@ -97,10 +105,10 @@ impl OutPoint {
 pub struct UtxoLock {
     /// Transaction hash that currently holds this lock
     pub claimed_by: Vec<u8>,
-    
+
     /// Fee of the transaction holding the lock
     pub claiming_fee: u64,
-    
+
     /// Timestamp when lock was acquired (Unix seconds)
     pub lock_time: u64,
 }
@@ -163,8 +171,9 @@ impl UtxoTracker {
 
         // Verify each input exists and is unspent in blockchain
         for (_idx, input) in tx.inputs.iter().enumerate() {
-            let prev_tx_hash = bincode::serialize(&input.prev_tx)
-                .map_err(|e| UtxoConflictError::InvalidInput(format!("Input serialization: {}", e)))?;
+            let prev_tx_hash = bincode::serialize(&input.prev_tx).map_err(|e| {
+                UtxoConflictError::InvalidInput(format!("Input serialization: {}", e))
+            })?;
 
             // Check if UTXO exists in blockchain
             self.verify_utxo_exists(&prev_tx_hash, input.index)?;
@@ -178,13 +187,13 @@ impl UtxoTracker {
             // Check for conflicts with existing claims
             if let Some(existing) = self.claims.get(&outpoint_str) {
                 let existing_fee = existing.claiming_fee;
-                
+
                 // Conflict detected - check if we should do RBF
                 if fee > existing_fee {
                     // New transaction has higher fee - allow replacement
                     drop(existing);
                     self.claims.remove(&outpoint_str);
-                    
+
                     let mut stats = self.stats.write();
                     stats.rbf_replacements += 1;
                     drop(stats);
@@ -219,9 +228,8 @@ impl UtxoTracker {
         let mut stats = self.stats.write();
         stats.total_tracked += 1;
         stats.total_claims += tx.inputs.len() as u64;
-        stats.conflicts_detected = (stats.total_tracked).saturating_sub(
-            self.claims.len() as u64 / self.tx_claims.len().max(1) as u64,
-        );
+        stats.conflicts_detected = (stats.total_tracked)
+            .saturating_sub(self.claims.len() as u64 / self.tx_claims.len().max(1) as u64);
         drop(stats);
 
         Ok(())
@@ -265,8 +273,9 @@ impl UtxoTracker {
         let mut conflicts = Vec::new();
 
         for input in &tx.inputs {
-            let prev_tx_hash = bincode::serialize(&input.prev_tx)
-                .map_err(|e| UtxoConflictError::InvalidInput(format!("Input serialization: {}", e)))?;
+            let prev_tx_hash = bincode::serialize(&input.prev_tx).map_err(|e| {
+                UtxoConflictError::InvalidInput(format!("Input serialization: {}", e))
+            })?;
 
             let outpoint = OutPoint::new(prev_tx_hash, input.index);
 
@@ -310,6 +319,12 @@ impl UtxoTracker {
         self.stats.read().clone()
     }
 
+    /// Record an RBF replacement in the tracker statistics
+    pub fn record_rbf_replacement(&self) {
+        let mut stats = self.stats.write();
+        stats.rbf_replacements += 1;
+    }
+
     /// Clear all claims (for testing or emergency reset)
     pub fn clear_all(&self) {
         self.claims.clear();
@@ -345,6 +360,9 @@ impl UtxoTracker {
         // Register new transaction's claims
         self.register_claims(new_tx, new_fee)?;
 
+        // Record RBF replacement statistics
+        self.record_rbf_replacement();
+
         Ok(true)
     }
 }
@@ -374,7 +392,10 @@ mod tests {
     fn create_test_transaction(id: u8, inputs_count: usize) -> Transaction {
         let mut inputs = Vec::new();
         for i in 0..inputs_count {
-            inputs.push(create_test_input((id as u8).wrapping_add(i as u8), i as u32));
+            inputs.push(create_test_input(
+                (id as u8).wrapping_add(i as u8),
+                i as u32,
+            ));
         }
 
         Transaction {

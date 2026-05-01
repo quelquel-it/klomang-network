@@ -16,8 +16,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::RwLock;
 
-use crate::storage::error::StorageResult;
 use super::recursive_dependency_tracker::TxHash;
+use crate::storage::error::StorageResult;
 
 /// Dynamic priority scheduler configuration
 #[derive(Clone, Debug)]
@@ -50,8 +50,8 @@ impl Default for PrioritySchedulerConfig {
         Self {
             fee_weight: 0.7,
             age_weight: 0.3,
-            age_boost_interval_secs: 600,     // 10 minutes
-            max_age_boost_value: 1000,         // ~100 minutes max
+            age_boost_interval_secs: 600,       // 10 minutes
+            max_age_boost_value: 1000,          // ~100 minutes max
             scheduler_update_interval_secs: 30, // 30 seconds
         }
     }
@@ -109,19 +109,15 @@ impl DynamicPriority {
     ///
     /// # Returns
     /// Floating-point score combining economic and fairness factors
-    pub fn calculate_score(
-        fee_rate: u64,
-        age_secs: u64,
-        config: &PrioritySchedulerConfig,
-    ) -> f64 {
+    pub fn calculate_score(fee_rate: u64, age_secs: u64, config: &PrioritySchedulerConfig) -> f64 {
         // Fee component: normalized to typical range (1-1000 sats/byte)
         // Higher fee rate = higher score contribution
         let fee_component = (fee_rate as f64) * config.fee_weight;
 
         // Age component: calculate boost intervals completed
         // Every boost_interval_secs, add 1 to boost value (capped at max)
-        let boost_count = (age_secs / config.age_boost_interval_secs)
-            .min(config.max_age_boost_value);
+        let boost_count =
+            (age_secs / config.age_boost_interval_secs).min(config.max_age_boost_value);
 
         let age_component = (boost_count as f64) * config.age_weight;
 
@@ -137,8 +133,8 @@ impl DynamicPriority {
         config: &PrioritySchedulerConfig,
     ) {
         self.age_secs = current_time.saturating_sub(arrival_time);
-        self.age_boost_count = (self.age_secs / config.age_boost_interval_secs)
-            .min(config.max_age_boost_value);
+        self.age_boost_count =
+            (self.age_secs / config.age_boost_interval_secs).min(config.max_age_boost_value);
         self.score = Self::calculate_score(self.fee_rate, self.age_secs, config);
         self.last_update = current_time;
     }
@@ -289,11 +285,7 @@ impl PriorityScheduler {
     }
 
     /// Update fee rate for a transaction (when child tx discovers parent)
-    pub fn update_transaction_fee(
-        &self,
-        tx_hash: &TxHash,
-        new_fee_rate: u64,
-    ) -> StorageResult<()> {
+    pub fn update_transaction_fee(&self, tx_hash: &TxHash, new_fee_rate: u64) -> StorageResult<()> {
         let config = self.config.read().clone();
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -402,9 +394,11 @@ impl PriorityScheduler {
             .collect();
 
         txs.sort_by(|a, b| {
-            b.1.age_boost_count
-                .cmp(&a.1.age_boost_count)
-                .then_with(|| b.1.score.partial_cmp(&a.1.score).unwrap_or(std::cmp::Ordering::Equal))
+            b.1.age_boost_count.cmp(&a.1.age_boost_count).then_with(|| {
+                b.1.score
+                    .partial_cmp(&a.1.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
         });
 
         Ok(txs)
@@ -507,13 +501,13 @@ mod tests {
     #[test]
     fn test_score_calculation_basic() {
         let config = PrioritySchedulerConfig::default();
-        
+
         // High fee, no age should emphasize fee
         let score1 = DynamicPriority::calculate_score(100, 0, &config);
-        
+
         // Low fee, high age should get boost from age
         let score2 = DynamicPriority::calculate_score(1, 1200, &config);
-        
+
         // Without age boost (exactly at threshold), score2 should be less than score1
         assert!(score1 > score2);
     }
@@ -522,9 +516,11 @@ mod tests {
     fn test_scheduler_registration() {
         let scheduler = PriorityScheduler::new(PrioritySchedulerConfig::default());
         let hash = vec![1, 2, 3];
-        
-        scheduler.register_transaction(hash.clone(), 50, 1000).unwrap();
-        
+
+        scheduler
+            .register_transaction(hash.clone(), 50, 1000)
+            .unwrap();
+
         let priority = scheduler.get_priority(&hash).unwrap();
         assert!(priority.is_some());
         assert_eq!(priority.unwrap().fee_rate, 50);
@@ -533,11 +529,11 @@ mod tests {
     #[test]
     fn test_starvation_prevention() {
         let config = PrioritySchedulerConfig::default();
-        
+
         // Two txs: one high fee, one old
         let high_fee_score = DynamicPriority::calculate_score(500, 60, &config);
         let old_low_fee_score = DynamicPriority::calculate_score(1, 1200, &config); // 2 boosts
-        
+
         // Old tx should have competitive score due to age boosts
         assert!((high_fee_score - old_low_fee_score).abs() < high_fee_score);
     }

@@ -3,12 +3,12 @@
 //! Menghubungkan mempool dengan klomang-node storage untuk automatic cleanup
 //! ketika transaksi sudah dikonfirmasi dalam blockchain.
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use crate::storage::kv_store::KvStore;
 
-use super::parallel_transaction_index::{ParallelTransactionIndex, IndexedTransactionStatus};
+use super::parallel_transaction_index::{IndexedTransactionStatus, ParallelTransactionIndex};
 
 /// Status sinkronisasi antara mempool dan storage
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -180,7 +180,9 @@ impl StorageSyncManager {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos() as u64;
-            metadata.cleaned_count = metadata.cleaned_count.saturating_add(sync_result.cleaned as u64);
+            metadata.cleaned_count = metadata
+                .cleaned_count
+                .saturating_add(sync_result.cleaned as u64);
             metadata.pending_count = sync_result.remaining as u64;
         } else {
             let mut metadata = self.metadata.write();
@@ -202,20 +204,20 @@ impl StorageSyncManager {
 
         // Get all pending transactions dari index
         let pending_txs = self.index.get_by_status(IndexedTransactionStatus::Pending);
-        
+
         // Limit cleanup to avoid too much work at once
         let to_check = pending_txs.iter().take(self.config.max_cleanup_per_sync);
 
         for tx in to_check {
-            let tx_hash = bincode::serialize(&tx.id)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let tx_hash =
+                bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
             // Check apakah transaksi sudah ada dalam storage
             match kv_store.get_mempool_transaction(&tx_hash) {
                 Some(_) => {
                     // Transaksi ditemukan di storage, hapus dari index
                     confirmed_tx_hashes.push(tx_hash.clone());
-                    
+
                     // Remove dari index
                     if let Ok(_) = self.index.remove(&tx_hash) {
                         cleaned_count += 1;
@@ -250,12 +252,10 @@ impl StorageSyncManager {
     }
 
     /// Notify storage manager bahwa transaksi included dalam block
-    pub fn notify_transaction_confirmed(
-        &self,
-        tx_hash: &[u8],
-    ) -> Result<(), String> {
+    pub fn notify_transaction_confirmed(&self, tx_hash: &[u8]) -> Result<(), String> {
         // Update status ke Confirmed dalam index
-        self.index.update_status(tx_hash, IndexedTransactionStatus::Confirmed)?;
+        self.index
+            .update_status(tx_hash, IndexedTransactionStatus::Confirmed)?;
 
         // Remove dari index
         let _ = self.index.remove(tx_hash); // Ignore errors if already removed
@@ -264,10 +264,7 @@ impl StorageSyncManager {
     }
 
     /// Batch notify multiple transactions confirm
-    pub fn notify_transactions_confirmed(
-        &self,
-        tx_hashes: &[Vec<u8>],
-    ) -> Result<usize, String> {
+    pub fn notify_transactions_confirmed(&self, tx_hashes: &[Vec<u8>]) -> Result<usize, String> {
         let mut confirmed_count = 0;
 
         for tx_hash in tx_hashes {
@@ -307,7 +304,7 @@ impl StorageSyncManager {
         }
 
         let index_stats = self.index.get_stats();
-        
+
         if index_stats.total_transactions as u64 != metadata.pending_count {
             return Err("Index transaction count mismatch".to_string());
         }
@@ -382,7 +379,7 @@ mod tests {
 
         let tx_hash = vec![1, 2, 3, 4];
         let result = manager.notify_transaction_confirmed(&tx_hash);
-        
+
         // Should fail because tx not in index
         assert!(result.is_err());
     }

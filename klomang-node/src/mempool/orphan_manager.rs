@@ -9,12 +9,12 @@
 //! - Automatic re-validation saat parent tiba
 //! - FIFO atau Fee-based eviction policies
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use dashmap::DashMap;
-use parking_lot::RwLock;
 use indexmap::IndexMap;
+use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
@@ -155,19 +155,19 @@ pub struct AdoptionResult {
 pub struct OrphanManager {
     /// DashMap untuk orphan transactions, indexed by tx hash
     orphan_pool: DashMap<Vec<u8>, OrphanEntry>,
-    
+
     /// Index dari OutPoint (parent) ke vec of orphan tx hashes (children)
     missing_input_index: Arc<RwLock<HashMap<OutPoint, Vec<Vec<u8>>>>>,
-    
+
     /// Tracking insertion order untuk FIFO eviction
     insertion_order: Arc<RwLock<IndexMap<Vec<u8>, u64>>>,
-    
+
     /// Configuration
     config: OrphanPoolConfig,
-    
+
     /// Statistics
     stats: Arc<RwLock<OrphanStats>>,
-    
+
     /// KvStore reference untuk existence checking (reserved for future use)
     _kv_store: Option<Arc<KvStore>>,
 }
@@ -251,16 +251,17 @@ impl OrphanManager {
 
     /// Get orphan entry dengan metadata
     pub fn get_orphan_entry(&self, tx_hash: &[u8]) -> Option<OrphanEntry> {
-        self.orphan_pool
-            .get(tx_hash)
-            .map(|entry| entry.clone())
+        self.orphan_pool.get(tx_hash).map(|entry| entry.clone())
     }
 
     /// Process orphans untuk parent yang baru tiba
     ///
     /// Ketika parent transaction tiba, cari semua children yang menunggu
     /// dan return mereka untuk di-adopt ke main mempool
-    pub fn process_orphans_for_parent(&self, parent_outpoint: &OutPoint) -> Result<AdoptionResult, String> {
+    pub fn process_orphans_for_parent(
+        &self,
+        parent_outpoint: &OutPoint,
+    ) -> Result<AdoptionResult, String> {
         let mut adopted_txs = Vec::new();
 
         // Get children yang menunggu parent ini
@@ -284,7 +285,8 @@ impl OrphanManager {
                 {
                     let mut stats = self.stats.write();
                     stats.total_orphans = self.orphan_pool.len();
-                    stats.total_memory_bytes = stats.total_memory_bytes.saturating_sub(entry.size_bytes);
+                    stats.total_memory_bytes =
+                        stats.total_memory_bytes.saturating_sub(entry.size_bytes);
                     stats.adoption_count += 1;
                 }
             }
@@ -348,7 +350,8 @@ impl OrphanManager {
             {
                 let mut stats = self.stats.write();
                 stats.total_orphans = self.orphan_pool.len();
-                stats.total_memory_bytes = stats.total_memory_bytes.saturating_sub(entry.size_bytes);
+                stats.total_memory_bytes =
+                    stats.total_memory_bytes.saturating_sub(entry.size_bytes);
             }
 
             Ok(Arc::clone(&entry.transaction))
@@ -359,7 +362,8 @@ impl OrphanManager {
 
     /// Cleanup expired orphan transactions
     pub fn cleanup_expired(&self) -> usize {
-        let expired_hashes: Vec<Vec<u8>> = self.orphan_pool
+        let expired_hashes: Vec<Vec<u8>> = self
+            .orphan_pool
             .iter()
             .filter(|entry| entry.value().is_expired(self.config.orphan_ttl_ns))
             .map(|entry| entry.key().clone())
@@ -376,7 +380,11 @@ impl OrphanManager {
     }
 
     /// Get semua orphan transactions dengan status tertentu
-    pub fn get_orphans_by_age_range(&self, min_age_ns: u64, max_age_ns: u64) -> Vec<Arc<Transaction>> {
+    pub fn get_orphans_by_age_range(
+        &self,
+        min_age_ns: u64,
+        max_age_ns: u64,
+    ) -> Vec<Arc<Transaction>> {
         self.orphan_pool
             .iter()
             .filter(|entry| {
@@ -425,7 +433,7 @@ impl OrphanManager {
         self.orphan_pool.clear();
         self.missing_input_index.write().clear();
         self.insertion_order.write().clear();
-        
+
         let mut stats = self.stats.write();
         *stats = OrphanStats::default();
     }
@@ -438,7 +446,9 @@ impl OrphanManager {
         for (_, children_hashes) in index.iter() {
             for child_hash in children_hashes {
                 if !self.orphan_pool.contains_key(child_hash) {
-                    return Err("Orphan child reference mismatch in missing input index".to_string());
+                    return Err(
+                        "Orphan child reference mismatch in missing input index".to_string()
+                    );
                 }
             }
         }
@@ -510,7 +520,9 @@ mod tests {
         let tx_hash = vec![1, 2, 3, 4];
         let missing = vec![OutPoint::new(vec![5, 6, 7, 8], 0)];
 
-        assert!(manager.add_orphan(tx_hash.clone(), tx.clone(), missing, 256, 1000).is_ok());
+        assert!(manager
+            .add_orphan(tx_hash.clone(), tx.clone(), missing, 256, 1000)
+            .is_ok());
         assert!(manager.contains(&tx_hash));
 
         let retrieved = manager.get_orphan(&tx_hash);
@@ -547,7 +559,9 @@ mod tests {
 
         assert_eq!(manager.len(), 1);
 
-        let result = manager.process_orphans_for_parent(&parent_outpoint).unwrap();
+        let result = manager
+            .process_orphans_for_parent(&parent_outpoint)
+            .unwrap();
         assert_eq!(result.adoption_count, 1);
         assert_eq!(manager.len(), 0);
     }
@@ -587,13 +601,19 @@ mod tests {
         let hash3 = vec![3];
         let missing = vec![OutPoint::new(vec![99], 0)];
 
-        manager.add_orphan(hash1, tx1, missing.clone(), 256, 1000).ok();
+        manager
+            .add_orphan(hash1, tx1, missing.clone(), 256, 1000)
+            .ok();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        manager.add_orphan(hash2, tx2, missing.clone(), 256, 1000).ok();
+        manager
+            .add_orphan(hash2, tx2, missing.clone(), 256, 1000)
+            .ok();
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         // Adding third should trigger eviction of first (FIFO)
-        manager.add_orphan(hash3, tx3, missing.clone(), 256, 1000).ok();
+        manager
+            .add_orphan(hash3, tx3, missing.clone(), 256, 1000)
+            .ok();
 
         assert_eq!(manager.len(), 2);
     }

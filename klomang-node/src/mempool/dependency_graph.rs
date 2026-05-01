@@ -175,9 +175,7 @@ impl DependencyGraph {
         let partitions = self.partitions.lock();
 
         let child_partition_id = *partitions.get(child).ok_or("Child not in partitions")?;
-        let parent_partition_id = *partitions
-            .get(parent)
-            .ok_or("Parent not in partitions")?;
+        let parent_partition_id = *partitions.get(parent).ok_or("Parent not in partitions")?;
 
         drop(partitions);
 
@@ -221,17 +219,11 @@ impl DependencyGraph {
     }
 
     /// Mark a transaction and its descendants as in conflict
-    pub fn mark_conflict(
-        &self,
-        tx_hash: &TxHash,
-        reason: String,
-    ) -> Result<Vec<TxHash>, String> {
+    pub fn mark_conflict(&self, tx_hash: &TxHash, reason: String) -> Result<Vec<TxHash>, String> {
         let mut affected = Vec::new();
 
         let partitions = self.partitions.lock();
-        let partition_id = *partitions
-            .get(tx_hash)
-            .ok_or("Transaction not in graph")?;
+        let partition_id = *partitions.get(tx_hash).ok_or("Transaction not in graph")?;
         drop(partitions);
 
         // Mark entire partition as in conflict
@@ -336,8 +328,10 @@ impl DependencyGraph {
 
         // Collect parents and children first to avoid borrow issues
         let (parents, children) = if let Some(dep) = deps.get(tx_hash) {
-            (dep.parents.iter().cloned().collect::<Vec<_>>(), 
-             dep.children.iter().cloned().collect::<Vec<_>>())
+            (
+                dep.parents.iter().cloned().collect::<Vec<_>>(),
+                dep.children.iter().cloned().collect::<Vec<_>>(),
+            )
         } else {
             (vec![], vec![])
         };
@@ -481,7 +475,10 @@ mod tests {
         // Initially in different partitions
         let partition1 = graph.get_partition(&tx1);
         let partition2 = graph.get_partition(&tx2);
-        assert_ne!(partition1.as_ref().map(|p| p.id), partition2.as_ref().map(|p| p.id));
+        assert_ne!(
+            partition1.as_ref().map(|p| p.id),
+            partition2.as_ref().map(|p| p.id)
+        );
 
         // Add dependency - should merge partitions
         graph.add_dependency(&tx2, &tx1).ok();
@@ -533,7 +530,9 @@ mod tests {
         let tx = tx_hash(1);
 
         graph.register_transaction(&tx);
-        graph.mark_conflict(&tx, "Double spend detected".to_string()).ok();
+        graph
+            .mark_conflict(&tx, "Double spend detected".to_string())
+            .ok();
 
         let reason = graph.get_conflict_reason(&tx);
         assert_eq!(reason, Some("Double spend detected".to_string()));

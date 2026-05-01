@@ -6,37 +6,32 @@
 #[cfg(test)]
 mod integration_tests {
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
+    use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput, TxOutput};
     use std::sync::Arc;
 
     use klomang_node::mempool::{
-        TransactionPool, PoolConfig, DeterministicSelector,
-        SelectionStrategy, TransactionStatus, EvictionEngine, 
-        EvictionPolicy,
+        DeterministicSelector, EvictionEngine, EvictionPolicy, PoolConfig, SelectionStrategy,
+        TransactionPool, TransactionStatus,
     };
 
     fn create_test_transaction(id_seed: u8) -> Transaction {
         Transaction {
             id: Hash::new(&[id_seed; 32]),
-            inputs: vec![
-                TxInput {
-                    prev_tx: Hash::new(&[id_seed - 1; 32]),
-                    index: 0,
-                    signature: vec![0; 64],
-                    pubkey: vec![0; 33],
-                    sighash_type: SigHashType::All,
-                },
-            ],
-            outputs: vec![
-                TxOutput {
-                    value: 1000,
-                    pubkey_hash: Hash::new(&[1u8; 32]),
-                },
-            ],
+            inputs: vec![TxInput {
+                prev_tx: Hash::new(&[id_seed - 1; 32]),
+                index: 0,
+                signature: vec![0; 64],
+                pubkey: vec![id_seed; 33],
+                sighash_type: SigHashType::All,
+            }],
+            outputs: vec![TxOutput {
+                value: 1000,
+                pubkey_hash: Hash::new(&[1u8; 32]),
+            }],
             execution_payload: vec![],
             contract_address: None,
             gas_limit: 0,
-            max_fee_per_gas: 0,
+            max_fee_per_gas: 500,
             chain_id: 1,
             locktime: 0,
         }
@@ -49,7 +44,7 @@ mod integration_tests {
 
         // Add transaction
         let tx = create_test_transaction(1);
-        let fee = 100;
+        let fee = 500;
         let size = 250;
 
         let result = pool.add_transaction(tx.clone(), fee, size);
@@ -70,7 +65,7 @@ mod integration_tests {
         // Add multiple transactions with different fees
         for i in 1u8..=5 {
             let tx = create_test_transaction(i);
-            let fee = (i as u64) * 100;
+            let fee = 250 + (i as u64) * 100;
             let size = 250;
             pool.add_transaction(tx, fee, size).unwrap();
         }
@@ -82,8 +77,8 @@ mod integration_tests {
         // Should select highest fee transactions first
         assert_eq!(selected.len(), 5);
         // Highest fee should be first
-        assert_eq!(selected[0].total_fee, 500); // tx 5 with fee 500
-        assert_eq!(selected[1].total_fee, 400); // tx 4 with fee 400
+        assert_eq!(selected[0].total_fee, 750); // tx 5 with fee 750
+        assert_eq!(selected[1].total_fee, 650); // tx 4 with fee 650
     }
 
     #[test]
@@ -97,9 +92,10 @@ mod integration_tests {
 
         // Add and reject a transaction
         let tx = create_test_transaction(1);
-        pool.add_transaction(tx.clone(), 100, 250).unwrap();
+        pool.add_transaction(tx.clone(), 500, 250).unwrap();
         let tx_hash = bincode::serialize(&tx.id).unwrap();
-        pool.set_status(&tx_hash, TransactionStatus::Rejected).unwrap();
+        pool.set_status(&tx_hash, TransactionStatus::Rejected)
+            .unwrap();
 
         // Check it's rejected
         let stats = pool.get_stats();
@@ -124,7 +120,7 @@ mod integration_tests {
         // Add transactions
         for i in 1u8..=3 {
             let tx = create_test_transaction(i);
-            let fee = 100;
+            let fee = 500;
             let size = 250;
             pool.add_transaction(tx, fee, size).unwrap();
         }
@@ -150,30 +146,41 @@ mod integration_tests {
 
         let config = PoolConfig::default();
         let pool = Arc::new(TransactionPool::new(config));
+        let mut added_hashes = Vec::new();
 
         // Fill pool to near capacity
         for i in 1u8..=95 {
             let tx = create_test_transaction(i);
-            let fee = (i as u64) * 10;
+            let fee = 250 + (i as u64) * 10;
             let size = 250;
+            let tx_hash = bincode::serialize(&tx.id).unwrap();
             pool.add_transaction(tx, fee, size).unwrap();
+            added_hashes.push(tx_hash);
         }
 
         let engine = EvictionEngine::new(pool.clone(), policy);
-        
+
         // Shouldn't need eviction yet
         assert!(!engine.need_eviction());
 
         // Add more to trigger eviction
         for i in 95u8..=105 {
             let tx = create_test_transaction(i);
-            let fee = (i as u64) * 10;
+            let fee = 250 + (i as u64) * 10;
             let size = 250;
+            let tx_hash = bincode::serialize(&tx.id).unwrap();
             pool.add_transaction(tx, fee, size).unwrap();
+            added_hashes.push(tx_hash);
         }
 
         // Now should need eviction
         assert!(engine.need_eviction());
+
+        // Mark a few low-priority transactions rejected so eviction can act
+        for tx_hash in added_hashes.iter().take(10) {
+            pool.set_status(tx_hash, TransactionStatus::Rejected)
+                .unwrap();
+        }
 
         // Perform eviction
         let result = engine.evict_lowest_priority().unwrap();
@@ -201,7 +208,7 @@ mod integration_tests {
         // Add transactions to increase pressure
         for i in 1u8..=50 {
             let tx = create_test_transaction(i);
-            let fee = 100;
+            let fee = 500;
             let size = 250;
             pool.add_transaction(tx, fee, size).unwrap();
         }
@@ -220,7 +227,7 @@ mod integration_tests {
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
         // Add transaction - starts as Pending
-        pool.add_transaction(tx, 100, 250).unwrap();
+        pool.add_transaction(tx, 500, 250).unwrap();
         // let entry = pool.get_by_hash(&tx_hash).unwrap();
         // assert_eq!(entry.status, TransactionStatus::Pending);
 
@@ -249,7 +256,7 @@ mod integration_tests {
         // Add transactions
         for i in 1u8..=50 {
             let tx = create_test_transaction(i);
-            let fee = 100;
+            let fee = 500;
             let size = 250;
             pool.add_transaction(tx, fee, size).unwrap();
         }

@@ -11,7 +11,7 @@ use crate::storage::kv_store::KvStore;
 
 use super::conflict_graph::{ConflictGraph, TxHash};
 use super::pool::TransactionPool;
-use super::rbf_manager::{RBFManager, RBFChoice};
+use super::rbf_manager::{RBFChoice, RBFManager};
 
 /// Result type for integration operations
 pub type IntegrationResult<T> = Result<T, IntegrationError>;
@@ -82,10 +82,9 @@ impl ConflictRBFManager {
         size_bytes: usize,
     ) -> IntegrationResult<AddTransactionResult> {
         // Serialize transaction hash
-        let tx_bytes = bincode::serialize(&tx.id)
-            .map_err(|e| IntegrationError::StorageError {
-                msg: format!("Serialization failed: {}", e),
-            })?;
+        let tx_bytes = bincode::serialize(&tx.id).map_err(|e| IntegrationError::StorageError {
+            msg: format!("Serialization failed: {}", e),
+        })?;
         let tx_hash = TxHash::new(tx_bytes);
 
         // Verify UTXO existence through storage
@@ -113,13 +112,7 @@ impl ConflictRBFManager {
         }
 
         // Handle conflicts with RBF evaluation
-        self.handle_rbf_conflicts(
-            tx,
-            &tx_hash,
-            fee,
-            size_bytes,
-            conflicting_txs,
-        )
+        self.handle_rbf_conflicts(tx, &tx_hash, fee, size_bytes, conflicting_txs)
     }
 
     /// Handle RBF evaluation for conflicting transactions
@@ -136,12 +129,11 @@ impl ConflictRBFManager {
 
         for conflict_hash in conflicting_txs {
             // Get conflicting transaction from pool
-            let conflict_entry = self
-                .pool
-                .get(conflict_hash.as_bytes())
-                .ok_or(IntegrationError::ConflictDetected {
+            let conflict_entry = self.pool.get(conflict_hash.as_bytes()).ok_or(
+                IntegrationError::ConflictDetected {
                     msg: "Conflicting transaction not found in pool".to_string(),
-                })?;
+                },
+            )?;
 
             let conflict_tx = &conflict_entry.transaction;
             let conflict_fee = conflict_entry.total_fee;
@@ -210,8 +202,8 @@ impl ConflictRBFManager {
         for input in &tx.inputs {
             // In production, would query UTXO set through KvStore
             // This is a safety check before conflict tracking
-            let _tx_bytes = bincode::serialize(&input.prev_tx)
-                .map_err(|e| IntegrationError::StorageError {
+            let _tx_bytes =
+                bincode::serialize(&input.prev_tx).map_err(|e| IntegrationError::StorageError {
                     msg: format!("UTXO serialization failed: {}", e),
                 })?;
 

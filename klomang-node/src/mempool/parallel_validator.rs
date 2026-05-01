@@ -11,10 +11,10 @@
 //! - Each shard processes independently
 //! - Deterministic results aggregation
 
-use std::sync::Arc;
-use rayon::prelude::*;
+use super::parallel_mempool::{ParallelMempool, SubPoolEntry, TransactionStatus};
 use crate::storage::KvStore;
-use super::parallel_mempool::{ParallelMempool, TransactionStatus, SubPoolEntry};
+use rayon::prelude::*;
+use std::sync::Arc;
 
 /// Validation task for a single transaction
 #[derive(Clone, Debug)]
@@ -46,7 +46,7 @@ pub struct ParallelValidatorConfig {
 impl Default for ParallelValidatorConfig {
     fn default() -> Self {
         Self {
-            num_workers: 4,  // Default to 4 workers
+            num_workers: 4, // Default to 4 workers
             validate_utxos: true,
             strict_validation: true,
         }
@@ -85,7 +85,10 @@ impl ParallelValidator {
     }
 
     /// Validate all pending transactions in parallel
-    pub fn validate_parallel(&self, mempool: &ParallelMempool) -> Result<Vec<ValidationResult>, String> {
+    pub fn validate_parallel(
+        &self,
+        mempool: &ParallelMempool,
+    ) -> Result<Vec<ValidationResult>, String> {
         // Collect all pending transactions
         let pending = mempool.get_by_status(TransactionStatus::Pending);
 
@@ -124,9 +127,7 @@ impl ParallelValidator {
 
         let results = tasks
             .into_par_iter()
-            .map(|task| {
-                Self::validate_single_transaction(&task, &config, kv_store.as_ref())
-            })
+            .map(|task| Self::validate_single_transaction(&task, &config, kv_store.as_ref()))
             .collect();
 
         Ok(results)
@@ -138,14 +139,15 @@ impl ParallelValidator {
         config: &ParallelValidatorConfig,
         kv_store: Option<&Arc<KvStore>>,
     ) -> ValidationResult {
-        let tx_hash = bincode::serialize(&task.tx_entry.transaction.id)
-            .unwrap_or_else(|_| vec![]);
+        let tx_hash = bincode::serialize(&task.tx_entry.transaction.id).unwrap_or_else(|_| vec![]);
 
         // Basic validation
         let mut error = None;
 
         // Check transaction structure
-        let mut status = if task.tx_entry.transaction.inputs.is_empty() && !task.tx_entry.transaction.is_coinbase() {
+        let mut status = if task.tx_entry.transaction.inputs.is_empty()
+            && !task.tx_entry.transaction.is_coinbase()
+        {
             error = Some("No inputs and not coinbase".to_string());
             TransactionStatus::Invalid
         } else if task.tx_entry.transaction.outputs.is_empty() {
@@ -196,10 +198,7 @@ impl ParallelValidator {
     }
 
     /// Full validation pipeline
-    pub fn validate_and_apply(
-        &self,
-        mempool: &ParallelMempool,
-    ) -> Result<ValidationStats, String> {
+    pub fn validate_and_apply(&self, mempool: &ParallelMempool) -> Result<ValidationStats, String> {
         let start = std::time::Instant::now();
 
         let _pending_count = mempool.get_by_status(TransactionStatus::Pending).len();
@@ -211,8 +210,14 @@ impl ParallelValidator {
         let stats = ValidationStats {
             transactions_processed: results.len(),
             transactions_updated: applied,
-            validated_count: results.iter().filter(|r| r.status == TransactionStatus::Validated).count(),
-            invalid_count: results.iter().filter(|r| r.status == TransactionStatus::Invalid).count(),
+            validated_count: results
+                .iter()
+                .filter(|r| r.status == TransactionStatus::Validated)
+                .count(),
+            invalid_count: results
+                .iter()
+                .filter(|r| r.status == TransactionStatus::Invalid)
+                .count(),
             duration_ms: duration.as_millis() as u64,
         };
 

@@ -72,7 +72,13 @@ impl StorageWriter {
         thread::Builder::new()
             .name("storage-writer".into())
             .spawn(move || {
-                Self::writer_loop(receiver, db, worker_pending, worker_committed, worker_shutdown);
+                Self::writer_loop(
+                    receiver,
+                    db,
+                    worker_pending,
+                    worker_committed,
+                    worker_shutdown,
+                );
             })
             .expect("failed to spawn storage writer thread");
 
@@ -141,9 +147,7 @@ impl StorageWriter {
                 }
             }
 
-            let result = db
-                .write_batch(combined_batch)
-                .map_err(StorageError::from);
+            let result = db.write_batch(combined_batch).map_err(StorageError::from);
 
             if result.is_ok() {
                 committed_batches.fetch_add(1, Ordering::Relaxed);
@@ -180,7 +184,9 @@ impl StorageReadExecutor {
             .num_threads(num_threads)
             .thread_name(|i| format!("storage-reader-{}", i))
             .build()
-            .map_err(|e| StorageError::OperationFailed(format!("failed to build read pool: {}", e)))?;
+            .map_err(|e| {
+                StorageError::OperationFailed(format!("failed to build read pool: {}", e))
+            })?;
 
         Ok(Self {
             pool: Arc::new(pool),
@@ -216,7 +222,10 @@ impl StorageEngine {
     pub fn new(db: StorageDb) -> StorageResult<Self> {
         let db = Arc::new(db);
         let writer = Arc::new(StorageWriter::new(Arc::clone(&db)));
-        let cache_layer = Arc::new(crate::storage::cache::StorageCacheLayer::new_with_writer(db, Arc::clone(&writer)));
+        let cache_layer = Arc::new(crate::storage::cache::StorageCacheLayer::new_with_writer(
+            db,
+            Arc::clone(&writer),
+        ));
         let reader = StorageReadExecutor::new(None)?;
 
         Ok(Self {

@@ -20,11 +20,11 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
-use crate::storage::error::{StorageResult, StorageError};
-use super::recursive_dependency_tracker::TxHash;
-use super::recursive_dependency_manager::RecursiveDependencyManager;
 use super::priority_pool::{PriorityPool, PriorityPoolStats};
+use super::recursive_dependency_manager::RecursiveDependencyManager;
+use super::recursive_dependency_tracker::TxHash;
+use crate::storage::error::{StorageError, StorageResult};
+use crate::storage::kv_store::KvStore;
 
 /// Configuration for ordering engine
 #[derive(Clone, Debug)]
@@ -159,7 +159,12 @@ impl OrderingEngine {
         dependency_manager: Arc<RecursiveDependencyManager>,
         kv_store: Arc<KvStore>,
     ) -> Self {
-        Self::with_config(priority_pool, dependency_manager, kv_store, OrderingEngineConfig::default())
+        Self::with_config(
+            priority_pool,
+            dependency_manager,
+            kv_store,
+            OrderingEngineConfig::default(),
+        )
     }
 
     /// Create with custom configuration
@@ -192,12 +197,8 @@ impl OrderingEngine {
         }
 
         // Add to priority pool
-        self.priority_pool.insert(
-            tx_hash,
-            tx.fee_rate,
-            tx.arrival_time,
-            tx.depth,
-        )?;
+        self.priority_pool
+            .insert(tx_hash, tx.fee_rate, tx.arrival_time, tx.depth)?;
 
         Ok(())
     }
@@ -206,7 +207,10 @@ impl OrderingEngine {
     ///
     /// This is the main API for block builder. Returns transactions in optimal
     /// order respecting fees, age, dependencies, and UTXO validity.
-    pub fn get_ordered_transactions(&self, limit: Option<usize>) -> StorageResult<Vec<OrderedTransaction>> {
+    pub fn get_ordered_transactions(
+        &self,
+        limit: Option<usize>,
+    ) -> StorageResult<Vec<OrderedTransaction>> {
         let start_time = std::time::Instant::now();
         let config = self.config.read();
 
@@ -217,7 +221,8 @@ impl OrderingEngine {
         let ordered_hashes = if config.enforce_topological {
             self.priority_pool.get_topological_order(tx_limit)?
         } else {
-            self.priority_pool.get_ordered_transactions(tx_limit, config.min_fee_rate)?
+            self.priority_pool
+                .get_ordered_transactions(tx_limit, config.min_fee_rate)?
         };
 
         let mut result = Vec::new();
@@ -246,9 +251,8 @@ impl OrderingEngine {
                         })
                         .collect();
 
-                    let all_ancestors_present = ancestors.is_empty() || ancestors.iter().all(|a| {
-                        result_hashes.contains(a)
-                    });
+                    let all_ancestors_present =
+                        ancestors.is_empty() || ancestors.iter().all(|a| result_hashes.contains(a));
 
                     if !all_ancestors_present {
                         rejected_missing_parents += 1;
@@ -318,7 +322,8 @@ impl OrderingEngine {
         let cache = self.tx_cache.read();
 
         // Get from pool with strict fee requirement
-        let ordered_hashes = self.priority_pool
+        let ordered_hashes = self
+            .priority_pool
             .get_ordered_transactions(limit, config.min_fee_rate)?;
 
         let mut result: Vec<OrderedTransaction> = Vec::new();
@@ -360,12 +365,8 @@ impl OrderingEngine {
         new_arrival_time: u64,
         new_depth: u32,
     ) -> StorageResult<()> {
-        self.priority_pool.update_priority(
-            tx_hash,
-            new_fee_rate,
-            new_arrival_time,
-            new_depth,
-        )?;
+        self.priority_pool
+            .update_priority(tx_hash, new_fee_rate, new_arrival_time, new_depth)?;
 
         Ok(())
     }
@@ -398,8 +399,6 @@ impl OrderingEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_ordering_engine_creation() {
         // Placeholder for integration testing

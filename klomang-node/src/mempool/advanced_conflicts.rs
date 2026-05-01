@@ -9,10 +9,10 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::{Transaction, SigHashType};
+use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
 /// Represents an outpoint that can be claimed by multiple transactions
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -134,31 +134,28 @@ impl ConflictMap {
         }
     }
 
-    /// Register a transaction and detect conflicts
-    pub fn register_transaction(
+    fn register_transaction_internal(
         &self,
         tx: &Transaction,
         tx_hash: &TxHash,
+        arrival_time: u64,
     ) -> Result<ConflictType, String> {
         let mut conflicts = self.conflicts.lock();
         let mut arrival_times = self.arrival_times.lock();
 
         // Record arrival time
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        arrival_times.insert(tx_hash.clone(), current_time);
+        arrival_times.insert(tx_hash.clone(), arrival_time);
 
         // Check each input for conflicts
-        for (idx, input) in tx.inputs.iter().enumerate() {
-            let outpoint = OutPoint::from_hash(&input.prev_tx, idx as u32)
+        for input in tx.inputs.iter() {
+            let outpoint = OutPoint::from_hash(&input.prev_tx, input.index)
                 .map_err(|e| format!("Failed to create outpoint: {}", e))?;
 
             // Check if this outpoint is already claimed
             if let Some(claiming_txs) = conflicts.get_mut(&outpoint) {
                 if !claiming_txs.is_empty() {
                     let conflict_tx = claiming_txs.iter().next().unwrap().clone();
+                    claiming_txs.insert(tx_hash.clone());
 
                     let mut stats = self.stats.lock();
                     stats.direct_conflicts += 1;
@@ -184,6 +181,32 @@ impl ConflictMap {
         Ok(ConflictType::NoConflict)
     }
 
+    /// Register a transaction and detect conflicts using the current wall-clock time.
+    pub fn register_transaction(
+        &self,
+        tx: &Transaction,
+        tx_hash: &TxHash,
+    ) -> Result<ConflictType, String> {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        self.register_transaction_internal(tx, tx_hash, current_time)
+    }
+
+    /// Register a transaction with an explicit arrival time.
+    ///
+    /// This is useful for deterministic conflict resolution in tests and
+    /// for replay scenarios where the arrival time is known.
+    pub fn register_transaction_with_arrival_time(
+        &self,
+        tx: &Transaction,
+        tx_hash: &TxHash,
+        arrival_time: u64,
+    ) -> Result<ConflictType, String> {
+        self.register_transaction_internal(tx, tx_hash, arrival_time)
+    }
+
     /// Resolve conflict between two transactions deterministically
     pub fn resolve_conflict(
         &self,
@@ -198,14 +221,8 @@ impl ConflictMap {
     ) -> Result<ResolutionResult, String> {
         let arrival_times = self.arrival_times.lock();
 
-        let time_a = arrival_times
-            .get(tx_a_hash)
-            .copied()
-            .unwrap_or(u64::MAX);
-        let time_b = arrival_times
-            .get(tx_b_hash)
-            .copied()
-            .unwrap_or(u64::MAX);
+        let time_a = arrival_times.get(tx_a_hash).copied().unwrap_or(u64::MAX);
+        let time_b = arrival_times.get(tx_b_hash).copied().unwrap_or(u64::MAX);
 
         drop(arrival_times);
 
@@ -297,11 +314,9 @@ impl ConflictMap {
         tx_b_fee: u64,
     ) -> Result<ResolutionResult, String> {
         match conflicts {
-            ConflictType::DirectConflict { .. } => {
-                self.resolve_conflict(
-                    tx_a, tx_b, tx_a_hash, tx_b_hash, tx_a_size, tx_b_size, tx_a_fee, tx_b_fee,
-                )
-            }
+            ConflictType::DirectConflict { .. } => self.resolve_conflict(
+                tx_a, tx_b, tx_a_hash, tx_b_hash, tx_a_size, tx_b_size, tx_a_fee, tx_b_fee,
+            ),
             _ => Err("Cannot resolve non-direct conflicts here".to_string()),
         }
     }
@@ -365,11 +380,7 @@ impl ConflictMap {
     /// Get all conflicted outpoints
     pub fn get_conflicted_outpoints(&self) -> Vec<OutPoint> {
         let conflicts = self.conflicts.lock();
-        conflicts
-            .iter()
-            .filter(|(_, txs)| txs.len() > 1)
-            .map(|(outpoint, _)| outpoint.clone())
-            .collect()
+        conflicts.keys().cloned().collect()
     }
 
     /// Get statistics
@@ -402,7 +413,7 @@ impl Drop for ConflictMap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klomang_core::core::state::transaction::TxInput;
+    use klomang_core::core::state::transaction::{SigHashType, TxInput};
 
     fn create_test_tx(id: u8, inputs: usize) -> Transaction {
         let mut tx_inputs = Vec::new();
@@ -455,7 +466,8 @@ mod tests {
         let map = ConflictMap::new(kv_store);
 
         let tx1 = create_test_tx(1, 1);
-        let tx2 = create_test_tx(2, 1); // Uses same prev_tx as tx1
+        let mut tx2 = create_test_tx(2, 1);
+        tx2.inputs[0].prev_tx = tx1.inputs[0].prev_tx.clone(); // same UTXO source
 
         let tx1_hash = TxHash::new(bincode::serialize(&tx1.id).unwrap());
         let tx2_hash = TxHash::new(bincode::serialize(&tx2.id).unwrap());
@@ -491,9 +503,8 @@ mod tests {
 
         // TX-A: 2000 fee / 100 bytes = 20 sat/byte
         // TX-B: 1000 fee / 100 bytes = 10 sat/byte
-        let result = map.resolve_conflict(
-            &tx_a, &tx_b, &tx_a_hash, &tx_b_hash, 100, 100, 2000, 1000,
-        );
+        let result =
+            map.resolve_conflict(&tx_a, &tx_b, &tx_a_hash, &tx_b_hash, 100, 100, 2000, 1000);
 
         assert!(result.is_ok());
         let res = result.unwrap();
@@ -524,7 +535,8 @@ mod tests {
         let map = ConflictMap::new(kv_store);
 
         let tx1 = create_test_tx(1, 1);
-        let tx2 = create_test_tx(2, 1);
+        let mut tx2 = create_test_tx(2, 1);
+        tx2.inputs[0].prev_tx = tx1.inputs[0].prev_tx.clone();
 
         let tx1_hash = TxHash::new(bincode::serialize(&tx1.id).unwrap());
         let tx2_hash = TxHash::new(bincode::serialize(&tx2.id).unwrap());

@@ -4,9 +4,9 @@
 //! untuk membaca data consistently tanpa pernah diblokir oleh writers.
 //! Menggunakan arc-swap untuk atomic pointer swaps dengan membaca konsisten.
 
-use std::sync::Arc;
 use arc_swap::ArcSwap;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 use klomang_core::core::state::transaction::Transaction;
 
@@ -40,13 +40,14 @@ impl MempoolSnapshot {
 
     /// Get top N transactions by fee rate
     pub fn get_top_by_fee(&self, limit: usize) -> Vec<Arc<Transaction>> {
-        let mut entries: Vec<_> = self.metadata
+        let mut entries: Vec<_> = self
+            .metadata
             .iter()
             .map(|(_, entry)| (entry.fee_rate(), entry.clone()))
             .collect();
 
         entries.sort_by(|a, b| b.0.cmp(&a.0));
-        
+
         entries
             .into_iter()
             .take(limit)
@@ -192,7 +193,7 @@ impl LockFreeReadLayer {
                 IndexedTransactionStatus::Pending => pending_count += 1,
                 IndexedTransactionStatus::Validated => validated_count += 1,
                 IndexedTransactionStatus::Invalid => invalid_count += 1,
-                IndexedTransactionStatus::Confirmed => {},
+                IndexedTransactionStatus::Confirmed => {}
             }
         }
 
@@ -213,7 +214,7 @@ impl LockFreeReadLayer {
         if self.config.enable_periodic_snapshots {
             let mut history = self.snapshot_history.write();
             history.push(old_snapshot);
-            
+
             // Keep only recent N snapshots to avoid memory bloat
             while history.len() > self.config.max_history_snapshots {
                 history.remove(0);
@@ -256,7 +257,7 @@ impl LockFreeReadLayer {
     /// Rollback ke snapshot tertentu dari history
     pub fn rollback_to_history_entry(&self, index: usize) -> Result<Arc<MempoolSnapshot>, String> {
         let history = self.snapshot_history.read();
-        
+
         if index >= history.len() {
             return Err("History index out of bounds".to_string());
         }
@@ -266,26 +267,31 @@ impl LockFreeReadLayer {
 
         // Swap to previous snapshot
         self.current_snapshot.swap(snapshot.clone());
-        
+
         Ok(snapshot)
     }
 
     /// Get statistics dari current snapshot
     pub fn get_current_stats(&self) -> (usize, usize, usize) {
         let snapshot = self.get_snapshot();
-        (snapshot.pending_count, snapshot.validated_count, snapshot.invalid_count)
+        (
+            snapshot.pending_count,
+            snapshot.validated_count,
+            snapshot.invalid_count,
+        )
     }
 
     /// Verify integrity dari snapshot
     pub fn verify_snapshot_consistency(&self) -> Result<(), String> {
         let snapshot = self.get_snapshot();
-        
+
         if snapshot.transactions.len() != snapshot.metadata.len() {
             return Err("Transaction count mismatch between data and metadata".to_string());
         }
 
-        let total_by_status = snapshot.pending_count + snapshot.validated_count + snapshot.invalid_count;
-        
+        let total_by_status =
+            snapshot.pending_count + snapshot.validated_count + snapshot.invalid_count;
+
         if total_by_status != snapshot.total_transactions {
             return Err("Status count mismatch".to_string());
         }
@@ -298,6 +304,7 @@ impl LockFreeReadLayer {
 mod tests {
     use super::*;
 
+    #[allow(dead_code)]
     fn create_test_snapshot() -> MempoolSnapshot {
         MempoolSnapshot {
             transactions: vec![],
@@ -316,10 +323,10 @@ mod tests {
     #[test]
     fn test_lock_free_read() {
         let layer = LockFreeReadLayer::new(LockFreeReadConfig::default());
-        
+
         let snapshot1 = layer.get_snapshot();
         let snapshot2 = layer.get_snapshot();
-        
+
         // Should be same snapshot instance
         assert_eq!(snapshot1.snapshot_time_ns, snapshot2.snapshot_time_ns);
     }
@@ -327,10 +334,10 @@ mod tests {
     #[test]
     fn test_snapshot_update() {
         let layer = LockFreeReadLayer::new(LockFreeReadConfig::default());
-        
+
         let snapshot = layer.update_snapshot(vec![], vec![]);
         assert_eq!(snapshot.total_transactions, 0);
-        
+
         let current = layer.get_snapshot();
         assert_eq!(current.total_transactions, 0);
     }
@@ -342,9 +349,9 @@ mod tests {
             ..Default::default()
         };
         let layer = LockFreeReadLayer::new(config);
-        
+
         assert!(!layer.needs_refresh()); // Just created
-        
+
         std::thread::sleep(std::time::Duration::from_millis(2));
         assert!(layer.needs_refresh()); // Should be old now
     }
@@ -352,11 +359,11 @@ mod tests {
     #[test]
     fn test_snapshot_history() {
         let layer = LockFreeReadLayer::new(LockFreeReadConfig::default());
-        
+
         layer.update_snapshot(vec![], vec![]);
         layer.update_snapshot(vec![], vec![]);
         layer.update_snapshot(vec![], vec![]);
-        
+
         let history = layer.get_history();
         assert!(history.len() > 0);
     }
@@ -365,7 +372,7 @@ mod tests {
     fn test_verify_consistency() {
         let layer = LockFreeReadLayer::new(LockFreeReadConfig::default());
         layer.update_snapshot(vec![], vec![]);
-        
+
         assert!(layer.verify_snapshot_consistency().is_ok());
     }
 }

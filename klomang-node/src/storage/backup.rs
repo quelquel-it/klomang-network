@@ -6,13 +6,13 @@ use rocksdb::backup::{BackupEngine, BackupEngineOptions, RestoreOptions};
 use rocksdb::{IteratorMode, Snapshot};
 use serde::{Deserialize, Serialize};
 
+use crate::storage::cf::ColumnFamilyName;
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
-use crate::storage::cf::ColumnFamilyName;
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state_manager::StateManager;
 use klomang_core::core::state::storage::Storage;
+use klomang_core::core::state_manager::StateManager;
 
 /// Metadata for backup validation and integrity checking
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -34,21 +34,24 @@ pub struct DatabaseSnapshot<'a> {
 
 impl<'a> DatabaseSnapshot<'a> {
     /// Create a consistent snapshot capturing current database state
-    pub fn create(db: &'a StorageDb, state_manager: &mut dyn StateManagerInterface) -> StorageResult<Self> {
+    pub fn create(
+        db: &'a StorageDb,
+        state_manager: &mut dyn StateManagerInterface,
+    ) -> StorageResult<Self> {
         // Create RocksDB snapshot for consistency
         let snapshot = db.snapshot();
 
         // Gather metadata from current state
         let metadata = Self::gather_metadata(db, state_manager)?;
 
-        Ok(Self {
-            snapshot,
-            metadata,
-        })
+        Ok(Self { snapshot, metadata })
     }
 
     /// Gather comprehensive metadata for backup validation
-    fn gather_metadata(db: &StorageDb, state_manager: &mut dyn StateManagerInterface) -> StorageResult<BackupMetadata> {
+    fn gather_metadata(
+        db: &StorageDb,
+        state_manager: &mut dyn StateManagerInterface,
+    ) -> StorageResult<BackupMetadata> {
         // Get current state information from StateManager
         let state_root = state_manager.get_current_state_root();
         let last_block_hash = state_manager.get_last_block_hash();
@@ -76,7 +79,9 @@ impl<'a> DatabaseSnapshot<'a> {
 
     /// Count records in a specific column family
     fn count_records(db: &StorageDb, cf: ColumnFamilyName) -> StorageResult<u64> {
-        let cf_handle = db.inner().cf_handle(cf.as_str())
+        let cf_handle = db
+            .inner()
+            .cf_handle(cf.as_str())
             .ok_or_else(|| StorageError::InvalidColumnFamily(cf.as_str().to_string()))?;
         let iter = db.inner().iterator_cf(&cf_handle, IteratorMode::Start);
 
@@ -131,19 +136,34 @@ impl DatabaseBackupEngine {
     }
 
     /// Create a backup from a database snapshot
-    pub fn create_backup(&mut self, db: &StorageDb, snapshot: &DatabaseSnapshot) -> StorageResult<u32> {
-        self.engine.create_new_backup_flush(db.inner(), true).map_err(|e| {
-            StorageError::OperationFailed(format!("Failed to create backup: {}", e))
-        })?;
+    pub fn create_backup(
+        &mut self,
+        db: &StorageDb,
+        snapshot: &DatabaseSnapshot,
+    ) -> StorageResult<u32> {
+        self.engine
+            .create_new_backup_flush(db.inner(), true)
+            .map_err(|e| {
+                StorageError::OperationFailed(format!("Failed to create backup: {}", e))
+            })?;
 
-        let backup_id = self.engine.get_backup_info()
+        let backup_id = self
+            .engine
+            .get_backup_info()
             .iter()
             .map(|info| info.backup_id)
             .max()
-            .ok_or_else(|| StorageError::OperationFailed("Unable to resolve backup id after backup creation".to_string()))?;
+            .ok_or_else(|| {
+                StorageError::OperationFailed(
+                    "Unable to resolve backup id after backup creation".to_string(),
+                )
+            })?;
 
         self.engine.verify_backup(backup_id).map_err(|e| {
-            StorageError::OperationFailed(format!("Backup verification failed for backup {}: {}", backup_id, e))
+            StorageError::OperationFailed(format!(
+                "Backup verification failed for backup {}: {}",
+                backup_id, e
+            ))
         })?;
 
         self.save_backup_metadata(backup_id, snapshot.metadata())?;
@@ -157,7 +177,9 @@ impl DatabaseBackupEngine {
         let mut metadata_with_id = metadata.clone();
         metadata_with_id.backup_id = backup_id;
 
-        let metadata_path = self.backup_dir.join(format!("backup_{}_metadata.json", backup_id));
+        let metadata_path = self
+            .backup_dir
+            .join(format!("backup_{}_metadata.json", backup_id));
         let json = serde_json::to_string_pretty(&metadata_with_id).map_err(|e| {
             StorageError::SerializationError(format!("Failed to serialize metadata: {}", e))
         })?;
@@ -171,26 +193,47 @@ impl DatabaseBackupEngine {
 
     /// Clean up old backups, keeping only the most recent N backups
     fn cleanup_old_backups(&mut self) -> StorageResult<()> {
-        self.engine.purge_old_backups(self.max_backups).map_err(|e| {
-            StorageError::OperationFailed(format!("Failed to purge old backups: {}", e))
-        })?;
+        self.engine
+            .purge_old_backups(self.max_backups)
+            .map_err(|e| {
+                StorageError::OperationFailed(format!("Failed to purge old backups: {}", e))
+            })?;
 
-        let keep_ids: HashSet<u32> = self.engine.get_backup_info().iter().map(|info| info.backup_id).collect();
+        let keep_ids: HashSet<u32> = self
+            .engine
+            .get_backup_info()
+            .iter()
+            .map(|info| info.backup_id)
+            .collect();
 
         for entry in fs::read_dir(&self.backup_dir).map_err(|e| {
-            StorageError::OperationFailed(format!("Failed to read backup directory for cleanup: {}", e))
+            StorageError::OperationFailed(format!(
+                "Failed to read backup directory for cleanup: {}",
+                e
+            ))
         })? {
-            let entry = entry.map_err(|e| StorageError::OperationFailed(format!("Failed to read backup directory entry: {}", e)))?;
+            let entry = entry.map_err(|e| {
+                StorageError::OperationFailed(format!(
+                    "Failed to read backup directory entry: {}",
+                    e
+                ))
+            })?;
             let file_name = entry.file_name().into_string().map_err(|_| {
                 StorageError::OperationFailed("Invalid backup metadata filename".into())
             })?;
 
             if file_name.starts_with("backup_") && file_name.ends_with("_metadata.json") {
-                if let Some(id_token) = file_name.strip_prefix("backup_").and_then(|suffix| suffix.strip_suffix("_metadata.json")) {
+                if let Some(id_token) = file_name
+                    .strip_prefix("backup_")
+                    .and_then(|suffix| suffix.strip_suffix("_metadata.json"))
+                {
                     if let Ok(backup_id) = id_token.parse::<u32>() {
                         if !keep_ids.contains(&backup_id) {
                             fs::remove_file(entry.path()).map_err(|e| {
-                                StorageError::OperationFailed(format!("Failed to remove old metadata file: {}", e))
+                                StorageError::OperationFailed(format!(
+                                    "Failed to remove old metadata file: {}",
+                                    e
+                                ))
                             })?;
                         }
                     }
@@ -208,7 +251,9 @@ impl DatabaseBackupEngine {
 
     /// Load backup metadata
     pub fn load_backup_metadata(&self, backup_id: u32) -> StorageResult<BackupMetadata> {
-        let metadata_path = self.backup_dir.join(format!("backup_{}_metadata.json", backup_id));
+        let metadata_path = self
+            .backup_dir
+            .join(format!("backup_{}_metadata.json", backup_id));
         let json = fs::read_to_string(&metadata_path).map_err(|e| {
             StorageError::OperationFailed(format!("Failed to read metadata file: {}", e))
         })?;
@@ -224,7 +269,11 @@ pub struct DatabaseRestoreEngine;
 
 impl DatabaseRestoreEngine {
     /// Restore database from backup and return backup metadata for validation.
-    pub fn restore_from_backup(backup_path: &Path, restore_path: &Path, backup_id: u32) -> StorageResult<BackupMetadata> {
+    pub fn restore_from_backup(
+        backup_path: &Path,
+        restore_path: &Path,
+        backup_id: u32,
+    ) -> StorageResult<BackupMetadata> {
         // Ensure restore directory exists and is empty
         if restore_path.exists() {
             fs::remove_dir_all(restore_path).map_err(|e| {
@@ -253,12 +302,17 @@ impl DatabaseRestoreEngine {
 
         // Restore from specific backup
         let restore_options = RestoreOptions::default();
-        engine.restore_from_backup(restore_path, &wal_restore_dir, &restore_options, backup_id).map_err(|e| {
-            StorageError::OperationFailed(format!("Failed to restore from backup: {}", e))
-        })?;
+        engine
+            .restore_from_backup(restore_path, &wal_restore_dir, &restore_options, backup_id)
+            .map_err(|e| {
+                StorageError::OperationFailed(format!("Failed to restore from backup: {}", e))
+            })?;
 
         engine.verify_backup(backup_id).map_err(|e| {
-            StorageError::OperationFailed(format!("Backup verification failed during restore: {}", e))
+            StorageError::OperationFailed(format!(
+                "Backup verification failed during restore: {}",
+                e
+            ))
         })?;
 
         let metadata_path = backup_path.join(format!("backup_{}_metadata.json", backup_id));
@@ -274,38 +328,47 @@ impl DatabaseRestoreEngine {
     }
 
     /// Validate restored database integrity
-    pub fn validate_restored_database(db: &StorageDb, expected_metadata: &BackupMetadata, state_manager: &mut dyn StateManagerInterface) -> StorageResult<()> {
+    pub fn validate_restored_database(
+        db: &StorageDb,
+        expected_metadata: &BackupMetadata,
+        state_manager: &mut dyn StateManagerInterface,
+    ) -> StorageResult<()> {
         // Verify state root matches using core verification logic
         state_manager.verify_state_root(expected_metadata.state_root.clone())?;
 
         // Verify last block hash matches
         let current_last_block = state_manager.get_last_block_hash();
         if current_last_block != expected_metadata.last_block_hash {
-            return Err(StorageError::OperationFailed(
-                format!("Last block hash mismatch: expected {:?}, got {:?}", expected_metadata.last_block_hash, current_last_block)
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "Last block hash mismatch: expected {:?}, got {:?}",
+                expected_metadata.last_block_hash, current_last_block
+            )));
         }
 
         // Verify record counts
         let actual_blocks = DatabaseSnapshot::count_records(db, ColumnFamilyName::Blocks)?;
         if actual_blocks != expected_metadata.total_blocks {
-            return Err(StorageError::OperationFailed(
-                format!("Block count mismatch: expected {}, got {}", expected_metadata.total_blocks, actual_blocks)
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "Block count mismatch: expected {}, got {}",
+                expected_metadata.total_blocks, actual_blocks
+            )));
         }
 
-        let actual_transactions = DatabaseSnapshot::count_records(db, ColumnFamilyName::Transactions)?;
+        let actual_transactions =
+            DatabaseSnapshot::count_records(db, ColumnFamilyName::Transactions)?;
         if actual_transactions != expected_metadata.total_transactions {
-            return Err(StorageError::OperationFailed(
-                format!("Transaction count mismatch: expected {}, got {}", expected_metadata.total_transactions, actual_transactions)
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "Transaction count mismatch: expected {}, got {}",
+                expected_metadata.total_transactions, actual_transactions
+            )));
         }
 
         let actual_utxos = DatabaseSnapshot::count_records(db, ColumnFamilyName::Utxo)?;
         if actual_utxos != expected_metadata.total_utxos {
-            return Err(StorageError::OperationFailed(
-                format!("UTXO count mismatch: expected {}, got {}", expected_metadata.total_utxos, actual_utxos)
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "UTXO count mismatch: expected {}, got {}",
+                expected_metadata.total_utxos, actual_utxos
+            )));
         }
 
         Ok(())
@@ -323,9 +386,9 @@ mod tests {
     use klomang_core::core::state::v_trie::VerkleTree;
     use klomang_core::core::state_manager::StateManager;
 
-    use crate::storage::db::StorageDb;
-    use crate::storage::concurrency::StorageEngine;
     use crate::storage::cf::ColumnFamilyName;
+    use crate::storage::concurrency::StorageEngine;
+    use crate::storage::db::StorageDb;
     use crate::storage::schema::BlockValue;
 
     fn create_test_setup() -> (TempDir, Arc<StorageEngine>, StateManager<MemoryStorage>) {
@@ -344,14 +407,17 @@ mod tests {
             transactions: vec![vec![4, 5, 6]],
             timestamp: 1000,
         };
-        storage.writer.enqueue(vec![crate::storage::concurrency::StorageWriteCommand::Put {
-            cf: ColumnFamilyName::Blocks,
-            key: Hash::from_bytes(&[1u8; 32]).as_bytes().to_vec(),
-            value: block_value.to_bytes().unwrap(),
-        }]);
+        let _ = storage.writer.enqueue(vec![
+            crate::storage::concurrency::StorageWriteCommand::Put {
+                cf: ColumnFamilyName::Blocks,
+                key: Hash::from_bytes(&[1u8; 32]).as_bytes().to_vec(),
+                value: block_value.to_bytes().unwrap(),
+            },
+        ]);
 
         // Create snapshot
-        let snapshot = DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
+        let snapshot =
+            DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
 
         // Verify metadata
         let metadata = snapshot.metadata();
@@ -373,10 +439,13 @@ mod tests {
         let mut backup_engine = DatabaseBackupEngine::new(&backup_dir, 3).unwrap();
 
         // Create snapshot
-        let snapshot = DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
+        let snapshot =
+            DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
 
         // Create backup
-        let backup_id = (&mut backup_engine).create_backup(&storage.cache_layer.db(), &snapshot).unwrap();
+        let backup_id = (&mut backup_engine)
+            .create_backup(&storage.cache_layer.db(), &snapshot)
+            .unwrap();
 
         // Verify backup was created
         let backups = backup_engine.get_backup_info();
@@ -411,14 +480,19 @@ mod tests {
                 transactions: vec![vec![4, 5, i as u8]],
                 timestamp: 1000 + i as u64,
             };
-            storage.writer.enqueue(vec![crate::storage::concurrency::StorageWriteCommand::Put {
-                cf: ColumnFamilyName::Blocks,
-                key: Hash::from_bytes(&[i as u8; 32]).as_bytes().to_vec(),
-                value: block_value.to_bytes().unwrap(),
-            }]);
+            let _ = storage.writer.enqueue(vec![
+                crate::storage::concurrency::StorageWriteCommand::Put {
+                    cf: ColumnFamilyName::Blocks,
+                    key: Hash::from_bytes(&[i as u8; 32]).as_bytes().to_vec(),
+                    value: block_value.to_bytes().unwrap(),
+                },
+            ]);
 
-            let snapshot = DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
-            (&mut backup_engine).create_backup(&storage.cache_layer.db(), &snapshot).unwrap();
+            let snapshot =
+                DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
+            (&mut backup_engine)
+                .create_backup(&storage.cache_layer.db(), &snapshot)
+                .unwrap();
         }
 
         // Should only keep 2 most recent backups
@@ -427,7 +501,8 @@ mod tests {
 
         // Verify metadata files for kept backups exist
         for backup in &backups {
-            let metadata_path = backup_dir.join(format!("backup_{}_metadata.json", backup.backup_id));
+            let metadata_path =
+                backup_dir.join(format!("backup_{}_metadata.json", backup.backup_id));
             assert!(metadata_path.exists());
         }
     }
@@ -442,8 +517,11 @@ mod tests {
 
         // Create backup
         let mut backup_engine = DatabaseBackupEngine::new(&backup_dir, 5).unwrap();
-        let snapshot = DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
-        let backup_id = backup_engine.create_backup(&storage.cache_layer.db(), &snapshot).unwrap();
+        let snapshot =
+            DatabaseSnapshot::create(&storage.cache_layer.db(), &mut state_manager).unwrap();
+        let backup_id = backup_engine
+            .create_backup(&storage.cache_layer.db(), &snapshot)
+            .unwrap();
 
         // Restore to new location
         DatabaseRestoreEngine::restore_from_backup(&backup_dir, &restore_dir, backup_id).unwrap();
@@ -464,7 +542,9 @@ mod tests {
         let mut backup_manager = BackupManager::new(&backup_dir, 5).unwrap();
 
         // Create backup
-        let backup_id = backup_manager.create_consistent_backup(&storage.cache_layer.db(), &mut state_manager).unwrap();
+        let backup_id = backup_manager
+            .create_consistent_backup(&storage.cache_layer.db(), &mut state_manager)
+            .unwrap();
 
         // Verify backup exists
         let backups = backup_manager.get_backup_info();
@@ -496,22 +576,36 @@ impl BackupManager {
     pub fn new(backup_dir: &Path, max_backups: usize) -> StorageResult<Self> {
         let backup_engine = DatabaseBackupEngine::new(backup_dir, max_backups)?;
 
-        Ok(Self {
-            backup_engine,
-        })
+        Ok(Self { backup_engine })
     }
 
     /// Create a complete backup with consistency guarantees
-    pub fn create_consistent_backup(&mut self, db: &StorageDb, state_manager: &mut dyn StateManagerInterface) -> StorageResult<u32> {
+    pub fn create_consistent_backup(
+        &mut self,
+        db: &StorageDb,
+        state_manager: &mut dyn StateManagerInterface,
+    ) -> StorageResult<u32> {
         let snapshot = DatabaseSnapshot::create(db, state_manager)?;
         self.backup_engine.create_backup(db, &snapshot)
     }
 
     /// Restore from backup and validate integrity
-    pub fn restore_and_validate(&self, backup_path: &Path, restore_path: &Path, backup_id: u32, restored_db: &StorageDb, state_manager: &mut dyn StateManagerInterface) -> StorageResult<()> {
-        let expected_metadata = DatabaseRestoreEngine::restore_from_backup(backup_path, restore_path, backup_id)?;
+    pub fn restore_and_validate(
+        &self,
+        backup_path: &Path,
+        restore_path: &Path,
+        backup_id: u32,
+        restored_db: &StorageDb,
+        state_manager: &mut dyn StateManagerInterface,
+    ) -> StorageResult<()> {
+        let expected_metadata =
+            DatabaseRestoreEngine::restore_from_backup(backup_path, restore_path, backup_id)?;
 
-        DatabaseRestoreEngine::validate_restored_database(restored_db, &expected_metadata, state_manager)
+        DatabaseRestoreEngine::validate_restored_database(
+            restored_db,
+            &expected_metadata,
+            state_manager,
+        )
     }
 
     /// Get backup information
@@ -534,7 +628,9 @@ impl<S: Storage + Clone> StateManagerInterface for StateManager<S> {
     }
 
     fn get_last_block_hash(&self) -> Hash {
-        self.current_block_hash.clone().unwrap_or_else(|| Hash::from_bytes(&[0u8; 32]))
+        self.current_block_hash
+            .clone()
+            .unwrap_or_else(|| Hash::from_bytes(&[0u8; 32]))
     }
 
     fn verify_state_root(&mut self, expected_root: Hash) -> Result<(), StorageError> {

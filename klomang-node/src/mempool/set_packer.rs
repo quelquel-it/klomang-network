@@ -3,10 +3,10 @@
 //! Implements greedy approximation for transaction selection optimization
 //! with sovereign set logic for dependent transactions.
 
-use std::sync::Arc;
-use std::collections::HashMap;
-use parking_lot::RwLock;
 use klomang_core::core::state::transaction::Transaction;
+use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Represents a sovereign set of dependent transactions
 #[derive(Clone, Debug)]
@@ -101,7 +101,11 @@ impl SetPacker {
 
         // Sort sets by fee density (greedy selection)
         let mut sorted_sets = sovereign_sets;
-        sorted_sets.sort_by(|a, b| b.fee_density.partial_cmp(&a.fee_density).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_sets.sort_by(|a, b| {
+            b.fee_density
+                .partial_cmp(&a.fee_density)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Greedy selection within weight limit
         let mut selected_sets = Vec::new();
@@ -122,12 +126,15 @@ impl SetPacker {
     /// Groups dependent transactions into inseparable units.
     /// For simplicity, treats each transaction as its own set initially.
     /// In full implementation, this would analyze dependency graph.
-    fn build_sovereign_sets(&self, transactions: &[Arc<Transaction>]) -> Result<Vec<SovereignSet>, String> {
+    fn build_sovereign_sets(
+        &self,
+        transactions: &[Arc<Transaction>],
+    ) -> Result<Vec<SovereignSet>, String> {
         let mut sets = Vec::new();
 
         for tx in transactions {
-            let tx_hash = bincode::serialize(&tx.id)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let tx_hash =
+                bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
             // Check cache first
             if let Some(cached_set) = self.set_cache.read().get(&tx_hash) {

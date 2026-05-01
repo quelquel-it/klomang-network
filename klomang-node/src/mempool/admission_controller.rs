@@ -3,10 +3,10 @@
 //! This module implements real-time monitoring of system resources (CPU, RAM)
 //! to dynamically adjust transaction admission policies based on current load.
 
-use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::RwLock;
+use std::fs;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// System resource metrics
 #[derive(Clone, Debug)]
@@ -61,8 +61,8 @@ impl AdmissionController {
                 timestamp: now,
             }),
             mode: RwLock::new(AdmissionMode::Normal),
-            cpu_threshold: 90.0, // 90% CPU usage
-            ram_threshold: 10.0, // 10% RAM available
+            cpu_threshold: 90.0,     // 90% CPU usage
+            ram_threshold: 10.0,     // 10% RAM available
             update_interval_secs: 5, // Update every 5 seconds
             last_update: RwLock::new(now),
             kv_store: None,
@@ -103,11 +103,12 @@ impl AdmissionController {
         }
 
         // Update admission mode
-        let new_mode = if cpu_percent > self.cpu_threshold || ram_available_percent < self.ram_threshold {
-            AdmissionMode::Strict
-        } else {
-            AdmissionMode::Normal
-        };
+        let new_mode =
+            if cpu_percent > self.cpu_threshold || ram_available_percent < self.ram_threshold {
+                AdmissionMode::Strict
+            } else {
+                AdmissionMode::Normal
+            };
 
         *self.mode.write() = new_mode;
         *self.last_update.write() = now;
@@ -152,7 +153,8 @@ impl AdmissionController {
             .map_err(|e| format!("Failed to read /proc/stat: {}", e))?;
 
         // Parse first line for total CPU stats
-        let first_line = stat_content.lines()
+        let first_line = stat_content
+            .lines()
             .next()
             .ok_or("No CPU stats available")?;
 
@@ -217,7 +219,9 @@ impl AdmissionController {
             return Ok(0);
         }
 
-        parts[1].parse().map_err(|_| "Invalid memory value".to_string())
+        parts[1]
+            .parse()
+            .map_err(|_| "Invalid memory value".to_string())
     }
 }
 

@@ -10,13 +10,13 @@
 //! - Storage state consistency checks
 //! - Integration with conflict resolution
 
-use std::sync::Arc;
-use parking_lot::RwLock;
 use dashmap::DashMap;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
-use klomang_core::core::state::transaction::Transaction;
 use crate::storage::error::StorageResult;
 use crate::storage::kv_store::KvStore;
+use klomang_core::core::state::transaction::Transaction;
 
 use super::advanced_dependency_manager::{TxDependencyManager, TxHash};
 
@@ -82,10 +82,7 @@ pub struct StorageIntegration {
 
 impl StorageIntegration {
     /// Create new storage integration
-    pub fn new(
-        dependency_manager: Arc<TxDependencyManager>,
-        kv_store: Arc<KvStore>,
-    ) -> Self {
+    pub fn new(dependency_manager: Arc<TxDependencyManager>, kv_store: Arc<KvStore>) -> Self {
         Self {
             dependency_manager,
             kv_store,
@@ -108,7 +105,11 @@ impl StorageIntegration {
             ParentClassification::OnChain
         } else {
             // Check if it's in mempool via dependency manager
-            if self.dependency_manager.get_execution_depth(parent_hash).is_some() {
+            if self
+                .dependency_manager
+                .get_execution_depth(parent_hash)
+                .is_some()
+            {
                 ParentClassification::InMempool
             } else {
                 ParentClassification::Missing
@@ -116,7 +117,9 @@ impl StorageIntegration {
         };
 
         let mempool_depth = match classification {
-            ParentClassification::InMempool => self.dependency_manager.get_execution_depth(parent_hash),
+            ParentClassification::InMempool => {
+                self.dependency_manager.get_execution_depth(parent_hash)
+            }
             _ => None,
         };
 
@@ -128,7 +131,8 @@ impl StorageIntegration {
         };
 
         // Cache the verification
-        self.parent_cache.insert(parent_hash.clone(), verification.clone());
+        self.parent_cache
+            .insert(parent_hash.clone(), verification.clone());
 
         // Update stats
         {
@@ -199,7 +203,8 @@ impl StorageIntegration {
         self.parent_cache.remove(parent_hash);
 
         // Get old classification
-        let old_class = self.parent_cache
+        let old_class = self
+            .parent_cache
             .get(parent_hash)
             .map(|v| v.classification.clone());
 
@@ -244,8 +249,6 @@ impl StorageIntegration {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_storage_integration_creation() {
         // Placeholder test - integration tests will verify functionality

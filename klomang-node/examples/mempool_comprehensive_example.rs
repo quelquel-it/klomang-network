@@ -8,12 +8,12 @@
 //! - Managing memory with eviction
 
 use klomang_core::core::crypto::Hash;
-use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput, SigHashType};
+use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput, TxOutput};
 use std::sync::Arc;
 
 use klomang_node::mempool::{
-    TransactionPool, PoolConfig, DeterministicSelector, SelectionStrategy,
-    EvictionEngine, EvictionPolicy, MempoolPressure, TransactionStatus,
+    DeterministicSelector, EvictionEngine, EvictionPolicy, MempoolPressure, PoolConfig,
+    SelectionStrategy, TransactionPool, TransactionStatus,
 };
 
 /// Example: Basic transaction pool operations
@@ -88,7 +88,12 @@ pub fn example_deterministic_selection() -> Result<(), Box<dyn std::error::Error
     let selected_fee = pool.select_with_selector(&selector_fee, 3, None)?;
     println!("HighestFee selection (selecting 3 of 5):");
     for (idx, entry) in selected_fee.iter().enumerate() {
-        println!("  {} - Fee: {}, Size: {} bytes", idx + 1, entry.total_fee, entry.size_bytes);
+        println!(
+            "  {} - Fee: {}, Size: {} bytes",
+            idx + 1,
+            entry.total_fee,
+            entry.size_bytes
+        );
     }
     println!();
 
@@ -97,7 +102,12 @@ pub fn example_deterministic_selection() -> Result<(), Box<dyn std::error::Error
     let selected_fifo = pool.select_with_selector(&selector_fifo, 3, None)?;
     println!("FIFO selection (selecting 3 of 5):");
     for (idx, entry) in selected_fifo.iter().enumerate() {
-        println!("  {} - Fee: {}, Size: {} bytes", idx + 1, entry.total_fee, entry.size_bytes);
+        println!(
+            "  {} - Fee: {}, Size: {} bytes",
+            idx + 1,
+            entry.total_fee,
+            entry.size_bytes
+        );
     }
     println!();
 
@@ -138,9 +148,18 @@ pub fn example_memory_eviction() -> Result<(), Box<dyn std::error::Error>> {
     // Check mempool pressure
     let pressure = MempoolPressure::calculate(&pool, &policy);
     println!("Mempool Pressure:");
-    println!("  - Transaction pressure: {:.1}%", pressure.transaction_pressure * 100.0);
-    println!("  - Memory pressure: {:.1}%", pressure.memory_pressure * 100.0);
-    println!("  - Total pressure: {:.1}%\n", pressure.total_pressure * 100.0);
+    println!(
+        "  - Transaction pressure: {:.1}%",
+        pressure.transaction_pressure * 100.0
+    );
+    println!(
+        "  - Memory pressure: {:.1}%",
+        pressure.memory_pressure * 100.0
+    );
+    println!(
+        "  - Total pressure: {:.1}%\n",
+        pressure.total_pressure * 100.0
+    );
 
     // Initialize eviction engine
     let engine = EvictionEngine::new(pool.clone(), policy);

@@ -4,24 +4,27 @@
 use std::sync::Arc;
 
 use klomang_node::storage::{
-    BlockTransactionBatch, SpentUtxoBatch, KvStore, StorageDb, StorageConfig, StorageCacheLayer,
+    BlockTransactionBatch, KvStore, SpentUtxoBatch, StorageCacheLayer, StorageConfig, StorageDb,
 };
 
 use klomang_node::storage::schema::{
-    BlockValue, HeaderValue, TransactionValue, TransactionInput, TransactionOutput,
-    UtxoValue, UtxoSpentValue, DagNodeValue, DagTipsValue,
+    BlockValue, DagNodeValue, DagTipsValue, HeaderValue, TransactionInput, TransactionOutput,
+    TransactionValue, UtxoSpentValue, UtxoValue,
 };
 
-use klomang_node::storage::metrics::StorageMetrics;
 use klomang_core::NoOpMetricsCollector;
+use klomang_node::storage::metrics::StorageMetrics;
 
 /// Example: Demonstrate atomic block commitment with error handling
 pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize storage
-    let config = StorageConfig::new("./atomic_block_data")
-        .with_block_cache_size(2 * 1024 * 1024 * 1024);
+    let config =
+        StorageConfig::new("./atomic_block_data").with_block_cache_size(2 * 1024 * 1024 * 1024);
 
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = Arc::new(StorageCacheLayer::new(db));
     let kv_store = KvStore::new(cache_layer);
 
@@ -33,10 +36,7 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
     let block_value = BlockValue {
         hash: block_hash.to_vec(),
         header_bytes: b"block_header_data".to_vec(),
-        transactions: vec![
-            b"tx_hash_1".to_vec(),
-            b"tx_hash_2".to_vec(),
-        ],
+        transactions: vec![b"tx_hash_1".to_vec(), b"tx_hash_2".to_vec()],
         timestamp: 1704067200,
     };
 
@@ -88,8 +88,18 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         tx_value: tx1_value,
         spent_utxos: vec![tx1_spent_utxo],
         new_utxos: vec![
-            UtxoValue::new(50_000_000, b"script_1".to_vec(), b"owner_1".to_vec(), block_height),
-            UtxoValue::new(49_900_000, b"script_2".to_vec(), b"owner_2".to_vec(), block_height),
+            UtxoValue::new(
+                50_000_000,
+                b"script_1".to_vec(),
+                b"owner_1".to_vec(),
+                block_height,
+            ),
+            UtxoValue::new(
+                49_900_000,
+                b"script_2".to_vec(),
+                b"owner_2".to_vec(),
+                block_height,
+            ),
         ],
     };
 
@@ -140,9 +150,12 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         tx_hash: tx2_hash.to_vec(),
         tx_value: tx2_value,
         spent_utxos: tx2_spent_utxos,
-        new_utxos: vec![
-            UtxoValue::new(99_000_000, b"script_merged".to_vec(), b"owner_merged".to_vec(), block_height),
-        ],
+        new_utxos: vec![UtxoValue::new(
+            99_000_000,
+            b"script_merged".to_vec(),
+            b"owner_merged".to_vec(),
+            block_height,
+        )],
     };
 
     // === DAG Information ===
@@ -154,13 +167,13 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
         1, // blue_score
     );
 
-    let dag_tips = DagTipsValue::new(
-        vec![block_hash.to_vec()],
-        block_height,
-    );
+    let dag_tips = DagTipsValue::new(vec![block_hash.to_vec()], block_height);
 
     // === Atomic Commit ===
-    println!("Committing block {} atomically...", String::from_utf8_lossy(block_hash));
+    println!(
+        "Committing block {} atomically...",
+        String::from_utf8_lossy(block_hash)
+    );
 
     kv_store.commit_block_atomic(
         block_hash,
@@ -198,7 +211,10 @@ pub fn example_atomic_block_commitment() -> Result<(), Box<dyn std::error::Error
 /// Example: Error handling - serialization failure prevents commit
 pub fn example_error_handling() -> Result<(), Box<dyn std::error::Error>> {
     let config = StorageConfig::new("./error_handling_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = Arc::new(StorageCacheLayer::new(db));
     let kv_store = KvStore::new(cache_layer);
 
@@ -249,7 +265,10 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
     println!("\n=== Complex Block Scenario ===\n");
 
     let config = StorageConfig::new("./complex_scenario_data");
-    let db = StorageDb::open_with_config(&config, Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))))?;
+    let db = StorageDb::open_with_config(
+        &config,
+        Arc::new(StorageMetrics::new(Box::new(NoOpMetricsCollector))),
+    )?;
     let cache_layer = Arc::new(StorageCacheLayer::new(db));
     let kv_store = KvStore::new(cache_layer);
 
@@ -278,11 +297,7 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
                     .as_bytes()
                     .to_vec(),
                 output_index: i as u32,
-                spent_value: UtxoSpentValue::new(
-                    tx_hash_arr.to_vec(),
-                    i as u32,
-                    block_height,
-                ),
+                spent_value: UtxoSpentValue::new(tx_hash_arr.to_vec(), i as u32, block_height),
             });
         }
 
@@ -299,16 +314,20 @@ pub fn example_complex_block_scenario() -> Result<(), Box<dyn std::error::Error>
 
         let tx_value = TransactionValue {
             tx_hash: tx_hash_arr.to_vec(),
-            inputs: (0..spent_count).map(|i| TransactionInput {
-                previous_tx_hash: format!("prev_{}_tx__________________________", i)
-                    .as_bytes()
-                    .to_vec(),
-                output_index: i as u32,
-            }).collect(),
-            outputs: (0..new_count).map(|i| TransactionOutput {
-                amount: base_amount + (i as u64 * 100_000),
-                pubkey_hash: format!("owner_{}", i).as_bytes().to_vec(),
-            }).collect(),
+            inputs: (0..spent_count)
+                .map(|i| TransactionInput {
+                    previous_tx_hash: format!("prev_{}_tx__________________________", i)
+                        .as_bytes()
+                        .to_vec(),
+                    output_index: i as u32,
+                })
+                .collect(),
+            outputs: (0..new_count)
+                .map(|i| TransactionOutput {
+                    amount: base_amount + (i as u64 * 100_000),
+                    pubkey_hash: format!("owner_{}", i).as_bytes().to_vec(),
+                })
+                .collect(),
             fee: 100_000,
         };
 

@@ -1,13 +1,12 @@
+use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 /// Background Batch Processor untuk Deferred Resolution
-/// 
+///
 /// Modul ini menyediakan background task yang secara berkala memproses batch
 /// dari deferred orphan resolutions menggunakan DeferredResolver. Ini mencegah
 /// CPU spikes dan memastikan smooth transaction adoption.
-
 use std::sync::Arc;
 use std::time::Duration;
-use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::advanced_orphan_management::DeferredResolver;
 
@@ -32,23 +31,20 @@ pub struct BackgroundProcessorStats {
 pub struct BackgroundBatchProcessor {
     /// Reference ke deferred resolver
     deferred_resolver: Arc<DeferredResolver>,
-    
+
     /// Processing interval dalam milliseconds
     processing_interval_ms: u64,
-    
+
     /// Is processor running
     is_running: Arc<AtomicBool>,
-    
+
     /// Statistics
     stats: Arc<Mutex<BackgroundProcessorStats>>,
 }
 
 impl BackgroundBatchProcessor {
     /// Create new background batch processor
-    pub fn new(
-        deferred_resolver: Arc<DeferredResolver>,
-        processing_interval_ms: u64,
-    ) -> Self {
+    pub fn new(deferred_resolver: Arc<DeferredResolver>, processing_interval_ms: u64) -> Self {
         Self {
             deferred_resolver,
             processing_interval_ms,
@@ -71,7 +67,7 @@ impl BackgroundBatchProcessor {
         }
 
         self.is_running.store(true, Ordering::SeqCst);
-        
+
         let mut stats = self.stats.lock();
         stats.is_running = true;
         drop(stats);
@@ -82,7 +78,7 @@ impl BackgroundBatchProcessor {
     /// Stop background processor
     pub fn stop(&self) {
         self.is_running.store(false, Ordering::SeqCst);
-        
+
         let mut stats = self.stats.lock();
         stats.is_running = false;
     }
@@ -102,11 +98,11 @@ impl BackgroundBatchProcessor {
             stats.total_batches_processed += 1;
             stats.total_tasks_processed += batch_size as u64;
             stats.last_batch_size = batch_size;
-            
+
             // Update average
             if stats.total_batches_processed > 0 {
-                stats.avg_items_per_batch = stats.total_tasks_processed as f64 
-                    / stats.total_batches_processed as f64;
+                stats.avg_items_per_batch =
+                    stats.total_tasks_processed as f64 / stats.total_batches_processed as f64;
             }
         }
 
@@ -150,34 +146,37 @@ mod tests {
 
     #[test]
     fn test_background_processor_creation() {
-        let resolver = Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
+        let resolver =
+            Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
         let processor = BackgroundBatchProcessor::new(resolver, 100);
-        
+
         assert_eq!(processor.processing_interval_ms, 100);
         assert!(!processor.is_running());
     }
 
     #[test]
     fn test_processor_start_stop() {
-        let resolver = Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
+        let resolver =
+            Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
         let processor = BackgroundBatchProcessor::new(resolver, 100);
-        
+
         assert!(processor.start().is_ok());
         assert!(processor.is_running());
-        
+
         processor.stop();
         assert!(!processor.is_running());
     }
 
     #[test]
     fn test_processor_statistics() {
-        let resolver = Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
+        let resolver =
+            Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
         let processor = BackgroundBatchProcessor::new(resolver, 100);
-        
+
         let stats = processor.get_stats();
         assert_eq!(stats.total_batches_processed, 0);
         assert_eq!(stats.total_tasks_processed, 0);
-        
+
         processor.clear_stats();
         let stats = processor.get_stats();
         assert_eq!(stats.total_batches_processed, 0);
@@ -185,9 +184,13 @@ mod tests {
 
     #[test]
     fn test_processor_interval() {
-        let resolver = Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
+        let resolver =
+            Arc::new(super::super::advanced_orphan_management::DeferredResolver::new(10, 1000));
         let processor = BackgroundBatchProcessor::new(resolver, 500);
-        
-        assert_eq!(processor.get_processing_interval(), Duration::from_millis(500));
+
+        assert_eq!(
+            processor.get_processing_interval(),
+            Duration::from_millis(500)
+        );
     }
 }

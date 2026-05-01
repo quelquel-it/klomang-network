@@ -16,8 +16,8 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
+use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::kv_store::KvStore;
-use crate::storage::error::{StorageResult, StorageError};
 
 /// Type alias for transaction hash (Vec<u8> for mempool)
 pub type TxHash = Vec<u8>;
@@ -196,15 +196,12 @@ impl RecursiveDependencyTracker {
         }
 
         // Register immediate parents
-        self.immediate_parents.insert(tx_hash.clone(), immediate_parents.clone());
+        self.immediate_parents
+            .insert(tx_hash.clone(), immediate_parents.clone());
 
         // Update ancestors recursively
-        let ancestors = self._build_ancestors_recursive(
-            &tx_hash,
-            &immediate_parents,
-            0,
-            &mut HashSet::new(),
-        )?;
+        let ancestors =
+            self._build_ancestors_recursive(&tx_hash, &immediate_parents, 0, &mut HashSet::new())?;
 
         // Check for cycles
         if ancestors.contains(&tx_hash) {
@@ -220,13 +217,11 @@ impl RecursiveDependencyTracker {
 
         // Check ancestry size limits
         if ancestors.len() > self.max_ancestry_size {
-            return Err(StorageError::OperationFailed(
-                format!(
-                    "Ancestry too large: {} > {}",
-                    ancestors.len(),
-                    self.max_ancestry_size
-                ),
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "Ancestry too large: {} > {}",
+                ancestors.len(),
+                self.max_ancestry_size
+            )));
         }
 
         // Store ancestors
@@ -271,7 +266,10 @@ impl RecursiveDependencyTracker {
     }
 
     /// Recursively resolve dependency chain and update status
-    pub fn resolve_dependency_chain(&self, tx_hash: &TxHash) -> StorageResult<DependencyResolutionStatus> {
+    pub fn resolve_dependency_chain(
+        &self,
+        tx_hash: &TxHash,
+    ) -> StorageResult<DependencyResolutionStatus> {
         // Check if already marked invalid
         {
             let invalid_txs = self.invalid_transactions.read();
@@ -281,10 +279,9 @@ impl RecursiveDependencyTracker {
         }
 
         // Get validation info
-        let validation = self.validations.get(tx_hash)
-            .ok_or_else(|| StorageError::OperationFailed(
-                format!("Transaction {:?} not registered", tx_hash)
-            ))?;
+        let validation = self.validations.get(tx_hash).ok_or_else(|| {
+            StorageError::OperationFailed(format!("Transaction {:?} not registered", tx_hash))
+        })?;
 
         let mut current_status = validation.status.clone();
 
@@ -331,9 +328,7 @@ impl RecursiveDependencyTracker {
         ancestors
             .get(tx_hash)
             .cloned()
-            .ok_or_else(|| StorageError::NotFound(
-                format!("Transaction {:?} not found", tx_hash)
-            ))
+            .ok_or_else(|| StorageError::NotFound(format!("Transaction {:?} not found", tx_hash)))
     }
 
     /// Get all descendants for a transaction (complete transitive closure)
@@ -342,9 +337,7 @@ impl RecursiveDependencyTracker {
         descendants
             .get(tx_hash)
             .cloned()
-            .ok_or_else(|| StorageError::NotFound(
-                format!("Transaction {:?} not found", tx_hash)
-            ))
+            .ok_or_else(|| StorageError::NotFound(format!("Transaction {:?} not found", tx_hash)))
     }
 
     /// Get immediate parents only
@@ -352,9 +345,7 @@ impl RecursiveDependencyTracker {
         self.immediate_parents
             .get(tx_hash)
             .map(|r| r.clone())
-            .ok_or_else(|| StorageError::NotFound(
-                format!("Transaction {:?} not found", tx_hash)
-            ))
+            .ok_or_else(|| StorageError::NotFound(format!("Transaction {:?} not found", tx_hash)))
     }
 
     /// Get immediate children only
@@ -362,9 +353,7 @@ impl RecursiveDependencyTracker {
         self.immediate_children
             .get(tx_hash)
             .map(|r| r.clone())
-            .ok_or_else(|| StorageError::NotFound(
-                format!("Transaction {:?} not found", tx_hash)
-            ))
+            .ok_or_else(|| StorageError::NotFound(format!("Transaction {:?} not found", tx_hash)))
     }
 
     /// Check if tx_a is an ancestor of tx_b (O(1) lookup)
@@ -475,7 +464,8 @@ impl RecursiveDependencyTracker {
         }
 
         // Update immediate parent/child references
-        for immediate_parent in self.immediate_parents
+        for immediate_parent in self
+            .immediate_parents
             .get(tx_hash)
             .map(|r| r.clone())
             .unwrap_or_default()
@@ -490,20 +480,21 @@ impl RecursiveDependencyTracker {
 
     /// Validate that an ancestor set resolves to Ready or Invalid status
     pub fn validate_ancestry(&self, tx_hash: &TxHash) -> StorageResult<AncestryValidation> {
-        let validation = self.validations.get(tx_hash)
-            .ok_or_else(|| StorageError::OperationFailed(
-                format!("Transaction {:?} not registered", tx_hash)
-            ))?;
+        let validation = self.validations.get(tx_hash).ok_or_else(|| {
+            StorageError::OperationFailed(format!("Transaction {:?} not registered", tx_hash))
+        })?;
 
         Ok(validation.clone())
     }
 
     /// Get current resolution status
-    pub fn get_resolution_status(&self, tx_hash: &TxHash) -> StorageResult<DependencyResolutionStatus> {
-        let validation = self.validations.get(tx_hash)
-            .ok_or_else(|| StorageError::OperationFailed(
-                format!("Transaction {:?} not registered", tx_hash)
-            ))?;
+    pub fn get_resolution_status(
+        &self,
+        tx_hash: &TxHash,
+    ) -> StorageResult<DependencyResolutionStatus> {
+        let validation = self.validations.get(tx_hash).ok_or_else(|| {
+            StorageError::OperationFailed(format!("Transaction {:?} not registered", tx_hash))
+        })?;
 
         Ok(validation.status.clone())
     }
@@ -535,12 +526,10 @@ impl RecursiveDependencyTracker {
         visited: &mut HashSet<TxHash>,
     ) -> StorageResult<HashSet<TxHash>> {
         if depth > self.max_recursion_depth {
-            return Err(StorageError::OperationFailed(
-                format!(
-                    "Recursion depth exceeded: {} > {}",
-                    depth, self.max_recursion_depth
-                ),
-            ));
+            return Err(StorageError::OperationFailed(format!(
+                "Recursion depth exceeded: {} > {}",
+                depth, self.max_recursion_depth
+            )));
         }
 
         let mut all_ancestors = HashSet::new();
@@ -579,7 +568,9 @@ impl RecursiveDependencyTracker {
         tx_hash: &TxHash,
         all_ancestors: &HashSet<TxHash>,
     ) -> StorageResult<AncestryValidation> {
-        let immediate_parents = self.immediate_parents.get(tx_hash)
+        let immediate_parents = self
+            .immediate_parents
+            .get(tx_hash)
             .map(|r| r.clone())
             .unwrap_or_default();
 
@@ -630,8 +621,6 @@ impl RecursiveDependencyTracker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_recursive_dependency_tracker_creation() {
         // Placeholder for integration testing

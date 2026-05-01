@@ -166,8 +166,9 @@ impl AtomicBlockWriter {
         batch.put_cf_typed(ColumnFamilyName::DagTips, b"current_tips", &dag_tips_bytes);
 
         // Commit without WAL
-        db.write_batch_no_wal(batch)
-            .map_err(|e| StorageError::DbError(format!("failed to commit block batch (no-wal): {}", e)))?;
+        db.write_batch_no_wal(batch).map_err(|e| {
+            StorageError::DbError(format!("failed to commit block batch (no-wal): {}", e))
+        })?;
 
         Ok(())
     }

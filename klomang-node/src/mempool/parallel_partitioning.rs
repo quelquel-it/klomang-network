@@ -10,9 +10,9 @@
 //! - Transactions with non-overlapping UTPOs go to different shards
 //! - This enables true parallel validation without race conditions
 
-use std::collections::{HashMap, HashSet};
-use klomang_core::core::state::transaction::Transaction;
 use super::conflict::OutPoint;
+use klomang_core::core::state::transaction::Transaction;
+use std::collections::{HashMap, HashSet};
 
 /// Configuration for transaction partitioning
 #[derive(Clone, Debug)]
@@ -90,8 +90,8 @@ impl ConflictFreePartitioner {
         // First pass: extract outpoints and map transactions
         for tx in &transactions {
             let outpoints = Self::extract_outpoints(tx);
-            let tx_hash = bincode::serialize(&tx.id)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let tx_hash =
+                bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
             // Record all outpoints
             for outpoint in &outpoints {
@@ -252,7 +252,7 @@ pub struct PartitionStats {
 mod tests {
     use super::*;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{TxInput, TxOutput, SigHashType};
+    use klomang_core::core::state::transaction::{SigHashType, TxInput, TxOutput};
 
     fn create_test_tx(prev_tx_bytes: &[u8]) -> Transaction {
         let prev_tx = Hash::new(prev_tx_bytes);

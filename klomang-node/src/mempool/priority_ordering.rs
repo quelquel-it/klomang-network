@@ -13,8 +13,8 @@
 //! - Bucket 3: 100-1000 sat/vB (high priority)
 //! - Bucket 4: 1000+ sat/vB (very high priority)
 
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Configuration for priority ordering buckets
 #[derive(Clone, Debug)]
@@ -123,9 +123,9 @@ impl PriorityBucket {
         }
 
         // Binary search to find insertion point
-        let insertion_point = self.transactions.binary_search_by(|existing| {
-            existing.compare_deterministic(&tx).reverse()
-        });
+        let insertion_point = self
+            .transactions
+            .binary_search_by(|existing| existing.compare_deterministic(&tx).reverse());
 
         match insertion_point {
             Ok(pos) => {
@@ -301,9 +301,7 @@ impl PriorityBuckets {
         let hash_idx = self.hash_index.read();
         if let Some((bucket_idx, _)) = hash_idx.get(tx_hash) {
             let buckets = self.buckets.read();
-            return buckets[*bucket_idx]
-                .find(tx_hash)
-                .map(|t| t.clone());
+            return buckets[*bucket_idx].find(tx_hash).map(|t| t.clone());
         }
         None
     }
@@ -336,7 +334,10 @@ impl PriorityBuckets {
     }
 
     /// Get transactions from specific fee rate bucket
-    pub fn get_bucket_transactions(&self, bucket_idx: usize) -> Result<Vec<PrioritizedTransaction>, String> {
+    pub fn get_bucket_transactions(
+        &self,
+        bucket_idx: usize,
+    ) -> Result<Vec<PrioritizedTransaction>, String> {
         let buckets = self.buckets.read();
         let bucket = buckets
             .get(bucket_idx)
@@ -374,9 +375,7 @@ impl PriorityBuckets {
                 if tx.fee_rate < bucket.lower_bound || tx.fee_rate >= bucket.upper_bound {
                     return Err(format!(
                         "Transaction has fee rate {} outside bucket [{}, {})",
-                        tx.fee_rate,
-                        bucket.lower_bound,
-                        bucket.upper_bound
+                        tx.fee_rate, bucket.lower_bound, bucket.upper_bound
                     ));
                 }
 
@@ -395,10 +394,13 @@ impl PriorityBuckets {
                     use std::cmp::Ordering;
                     match p.compare_deterministic(tx) {
                         Ordering::Greater | Ordering::Equal => {
-                            return Err("Transaction not ordered correctly relative to peer".to_string());
+                            return Err(
+                                "Transaction not ordered correctly relative to peer".to_string()
+                            );
                         }
                         Ordering::Less => {
-                            return Err("Invalid ordering: later transaction has higher priority".to_string());
+                            return Err("Invalid ordering: later transaction has higher priority"
+                                .to_string());
                         }
                     }
                 }

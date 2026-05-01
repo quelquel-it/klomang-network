@@ -6,16 +6,16 @@
 //! - Automatic chain linking saat parent tiba
 //! - Thread-safe operations dengan parking_lot::Mutex
 
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
-use std::collections::{VecDeque, BTreeMap};
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
-use parking_lot::Mutex;
 use klomang_core::core::state::transaction::Transaction;
+use parking_lot::Mutex;
 
-use super::orphan_manager::OrphanManager;
 use super::conflict::OutPoint;
+use super::orphan_manager::OrphanManager;
 
 /// Deferred Resolution Task
 #[derive(Clone, Debug)]
@@ -36,16 +36,16 @@ pub struct ResolutionTask {
 pub struct DeferredResolver {
     /// Queue dengan priority-based ordering
     queue: Arc<Mutex<VecDeque<ResolutionTask>>>,
-    
+
     /// Tracking waktu terakhir resolution dilakukan
     last_resolution: Arc<Mutex<Instant>>,
-    
+
     /// Minimum interval antara batch resolutions (untuk throttling)
     min_resolution_interval_ms: u64,
-    
+
     /// Maximum tasks per batch resolution
     max_tasks_per_batch: usize,
-    
+
     /// Statistics
     stats: Arc<Mutex<ResolutionStats>>,
 }
@@ -110,7 +110,9 @@ impl DeferredResolver {
         let last_resolution = *self.last_resolution.lock();
 
         // Check apakah sudah cukup waktu sejak resolusi terakhir
-        if now.duration_since(last_resolution) < Duration::from_millis(self.min_resolution_interval_ms) {
+        if now.duration_since(last_resolution)
+            < Duration::from_millis(self.min_resolution_interval_ms)
+        {
             return Ok(Vec::new());
         }
 
@@ -123,7 +125,7 @@ impl DeferredResolver {
             if let Some(task) = queue.pop_front() {
                 // Default TTL: 20 minutes
                 let ttl = Duration::from_secs(20 * 60);
-                
+
                 if now.duration_since(task.scheduled_at) > ttl {
                     // Task expired, skip
                     self.stats.lock().total_expired += 1;
@@ -186,13 +188,13 @@ pub struct OrphanChainLink {
 pub struct RecursiveOrphanLinker {
     /// Reference ke orphan manager
     orphan_manager: Arc<OrphanManager>,
-    
+
     /// Cache untuk chain relationships
     chain_cache: Arc<DashMap<Vec<u8>, OrphanChainLink>>,
-    
+
     /// Maximum depth untuk mencegah infinite recursion pada circular deps
     max_chain_depth: usize,
-    
+
     /// Statistics
     stats: Arc<Mutex<LinkerStats>>,
 }
@@ -239,11 +241,11 @@ impl RecursiveOrphanLinker {
         parent_tx: &Transaction,
     ) -> Result<ChainResolutionResult, String> {
         let mut result = ChainResolutionResult::default();
-        
+
         // Collect parent's outputs sebagai starting point
         let mut current_level_outputs = Vec::new();
         let parent_tx_hash = parent_tx.id.clone();
-        
+
         // Convert parent outputs to OutPoints
         for (output_index, _output) in parent_tx.outputs.iter().enumerate() {
             current_level_outputs.push(OutPoint {
@@ -269,11 +271,11 @@ impl RecursiveOrphanLinker {
                         // Collect newly freed outputs dari adopted txs
                         for adopted_tx in &adoption_result.adopted_txs {
                             result.total_adopted += adoption_result.adoption_count;
-                            
+
                             // Serialize adopted tx hash untuk tracking
                             let adopted_hash = bincode::serialize(&adopted_tx.id)
                                 .map_err(|e| format!("Serialization error: {}", e))?;
-                            
+
                             // Create chain link
                             let link = OrphanChainLink {
                                 tx_hash: adopted_hash.clone(),
@@ -326,12 +328,12 @@ impl RecursiveOrphanLinker {
 
         for entry in self.chain_cache.iter() {
             let tx_hash = entry.key().clone();
-            
+
             if !visited.contains(&tx_hash) {
                 let mut path = Vec::new();
                 if self._dfs_detect_cycle(&tx_hash, &mut visited, &mut rec_stack, &mut path) {
                     circular_deps.push(path);
-                    
+
                     // Update stats
                     self.stats.lock().circular_deps_detected += 1;
                 }
@@ -379,7 +381,7 @@ impl RecursiveOrphanLinker {
             report.total_links += 1;
 
             let link = entry.value();
-            
+
             // Verify depth tidak exceed max
             if link.depth > self.max_chain_depth {
                 report.invalid_depth_links += 1;
@@ -452,7 +454,7 @@ mod tests {
     #[test]
     fn test_deferred_resolver_scheduling() {
         let resolver = DeferredResolver::new(100, 10);
-        
+
         assert!(resolver.schedule_resolution(vec![1], 100).is_ok());
         assert!(resolver.schedule_resolution(vec![2], 200).is_ok());
         assert_eq!(resolver.queue_size(), 2);
@@ -461,7 +463,7 @@ mod tests {
     #[test]
     fn test_deferred_resolver_batch_processing() {
         let resolver = DeferredResolver::new(0, 5);
-        
+
         for i in 0..10 {
             let _ = resolver.schedule_resolution(vec![i as u8], i as u64);
         }
@@ -477,26 +479,26 @@ mod tests {
 
     #[test]
     fn test_recursive_linker_creation() {
-        use std::sync::Arc;
         use crate::mempool::orphan_manager::{OrphanManager, OrphanPoolConfig};
+        use std::sync::Arc;
 
         let config = OrphanPoolConfig::default();
         let manager = Arc::new(OrphanManager::new(config, None));
         let linker = RecursiveOrphanLinker::new(manager, 10);
-        
+
         let stats = linker.get_stats();
         assert_eq!(stats.total_chains_resolved, 0);
     }
 
     #[test]
     fn test_chain_integrity_report() {
-        use std::sync::Arc;
         use crate::mempool::orphan_manager::{OrphanManager, OrphanPoolConfig};
+        use std::sync::Arc;
 
         let config = OrphanPoolConfig::default();
         let manager = Arc::new(OrphanManager::new(config, None));
         let linker = RecursiveOrphanLinker::new(manager, 10);
-        
+
         match linker.verify_chain_integrity() {
             Ok(report) => {
                 assert_eq!(report.total_links, 0);

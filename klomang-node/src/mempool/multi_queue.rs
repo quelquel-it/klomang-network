@@ -3,12 +3,12 @@
 //! Implements layered queuing system with priority-based admission
 //! and dynamic rebalancing for anti-starvation protection.
 
+use crate::storage::KvStore;
+use dashmap::DashMap;
+use klomang_core::core::state::transaction::Transaction;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use dashmap::DashMap;
-use parking_lot::RwLock;
-use klomang_core::core::state::transaction::Transaction;
-use crate::storage::KvStore;
 
 /// Queue entry with metadata
 #[derive(Clone, Debug)]
@@ -40,8 +40,8 @@ impl HighPriorityQueue {
     }
 
     pub fn add(&self, tx: Arc<Transaction>) -> Result<(), String> {
-        let tx_hash = bincode::serialize(&tx.id)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+        let tx_hash =
+            bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
         if self.queue.len() >= self.max_size {
             return Err("High priority queue full".to_string());
@@ -99,8 +99,8 @@ impl StandardQueue {
     }
 
     pub fn add(&self, tx: Arc<Transaction>) -> Result<(), String> {
-        let tx_hash = bincode::serialize(&tx.id)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+        let tx_hash =
+            bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
         if self.queue.len() >= self.max_size {
             return Err("Standard queue full".to_string());
@@ -149,8 +149,8 @@ impl LowPriorityQueue {
     }
 
     pub fn add(&self, tx: Arc<Transaction>) -> Result<(), String> {
-        let tx_hash = bincode::serialize(&tx.id)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+        let tx_hash =
+            bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
         if self.queue.len() >= self.max_size {
             return Err("Low priority queue full".to_string());
@@ -257,7 +257,8 @@ impl MultiQueueAdmissionSystem {
             self.low_queue.remove(&tx_hash);
 
             // Add to standard queue
-            self.standard_queue.add(Arc::clone(&entry.transaction))
+            self.standard_queue
+                .add(Arc::clone(&entry.transaction))
                 .map_err(|e| format!("Failed to promote transaction: {}", e))?;
         }
 
@@ -284,8 +285,8 @@ impl MultiQueueAdmissionSystem {
         };
 
         let _key = b"queue_metadata";
-        let _value = bincode::serialize(&metadata)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+        let _value =
+            bincode::serialize(&metadata).map_err(|e| format!("Serialization error: {}", e))?;
 
         // Use kv_store to persist (assuming it has a put method)
         // For now, placeholder - in real implementation, use appropriate storage method

@@ -6,41 +6,45 @@
 //! - Arrival time for FIFO tie-breaking
 //! - Status for lifecycle management
 
+use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use dashmap::DashMap;
 
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
-use super::status::TransactionStatus;
-use super::advanced_dependency_manager::TxDependencyManager;
-use super::selection::{DeterministicSelector, SelectionCriteria};
-use super::parallel_selection::{ParallelSelectionBuilder, FeeBalancer};
-use super::priority_scheduler::{PriorityScheduler, PrioritySchedulerConfig};
-use super::multi_dimensional_index::{MultiDimensionalIndex, IndexedTransaction};
-use super::deterministic_ordering::{DeterministicOrderingEngine, DeterministicOrderingEngineConfig};
-use super::orphan_manager::{OrphanManager, OrphanPoolConfig};
-use super::conflict::OutPoint;
-use super::validation::{PoolValidator, ValidationResult};
-use super::advanced_orphan_management::{DeferredResolver, RecursiveOrphanLinker};
-use super::memory_limiter::{MempoolLimiter, MempoolLimiterConfig};
-use super::resource_optimizer::{ResourceOptimizer, ResourceOptimizerConfig};
-use super::graph_conflict_ordering_integration::{ConflictOrderingIntegration, ConflictOrderingIntegrationConfig};
 use super::admission_controller::AdmissionController;
+use super::advanced_dependency_manager::TxDependencyManager;
+use super::advanced_orphan_management::{DeferredResolver, RecursiveOrphanLinker};
+use super::conflict::OutPoint;
+use super::deterministic_ordering::{
+    DeterministicOrderingEngine, DeterministicOrderingEngineConfig,
+};
+use super::graph_conflict_ordering_integration::{
+    ConflictOrderingIntegration, ConflictOrderingIntegrationConfig,
+};
+use super::memory_limiter::{MempoolLimiter, MempoolLimiterConfig};
+use super::multi_dimensional_index::{IndexedTransaction, MultiDimensionalIndex};
+use super::orphan_manager::{OrphanManager, OrphanPoolConfig};
+use super::parallel_selection::{FeeBalancer, ParallelSelectionBuilder};
+use super::priority_scheduler::{PriorityScheduler, PrioritySchedulerConfig};
+use super::resource_optimizer::{ResourceOptimizer, ResourceOptimizerConfig};
+use super::selection::{DeterministicSelector, SelectionCriteria};
+use super::status::TransactionStatus;
+use super::validation::{PoolValidator, ValidationResult};
+use crate::storage::kv_store::KvStore;
 
 /// Configuration for transaction pool behavior
 #[derive(Clone, Debug)]
 pub struct PoolConfig {
     /// Maximum number of transactions in pool
     pub max_pool_size: usize,
-    
+
     /// Maximum number of orphan transactions
     pub max_orphan_size: usize,
-    
+
     /// Minimum fee per byte to accept transaction
     pub min_fee_rate: u64,
 
@@ -52,10 +56,10 @@ pub struct PoolConfig {
 
     /// Window for per-source rate limiting, in seconds
     pub rate_limit_window_secs: u64,
-    
+
     /// TTL for orphan transactions in seconds
     pub orphan_ttl_secs: u64,
-    
+
     /// TTL for rejected transactions in seconds
     pub rejected_ttl_secs: u64,
 }
@@ -65,12 +69,12 @@ impl Default for PoolConfig {
         Self {
             max_pool_size: 10000,
             max_orphan_size: 1000,
-            min_fee_rate: 1, // 1 satoshi per byte
+            min_fee_rate: 1,               // 1 satoshi per byte
             dynamic_fee_bump_percent: 150, // up to 150% fee increase at high mempool utilization
             max_transactions_per_source: 10,
             rate_limit_window_secs: 60, // 1 minute
-            orphan_ttl_secs: 600, // 10 minutes
-            rejected_ttl_secs: 3600, // 1 hour
+            orphan_ttl_secs: 600,       // 10 minutes
+            rejected_ttl_secs: 3600,    // 1 hour
         }
     }
 }
@@ -80,16 +84,16 @@ impl Default for PoolConfig {
 pub struct PoolEntry {
     /// The transaction itself
     pub transaction: Transaction,
-    
+
     /// Current lifecycle status
     pub status: TransactionStatus,
-    
+
     /// Time when transaction was first added (UNIX timestamp)
     pub arrival_time: u64,
-    
+
     /// Size in bytes for fee rate calculation
     pub size_bytes: usize,
-    
+
     /// Total fees in satoshis
     pub total_fee: u64,
 }
@@ -246,7 +250,8 @@ impl FeeFilter {
 
         if utilization > 0.75 {
             // Increase fee when heavily utilized
-            let bump = ((self.base_min_fee as f64 * utilization * self.max_bump_percent as f64) / 100.0)
+            let bump = ((self.base_min_fee as f64 * utilization * self.max_bump_percent as f64)
+                / 100.0)
                 .ceil() as u64;
             self.current_min_fee = self.base_min_fee.saturating_add(bump);
         } else if utilization < 0.25 {
@@ -284,43 +289,43 @@ impl FeeFilter {
 pub struct TransactionPool {
     /// Primary index: transaction hash -> pool entry
     by_hash: Arc<RwLock<IndexMap<Vec<u8>, PoolEntry>>>,
-    
+
     /// Secondary index for quick orphan lookup
     orphans: Arc<RwLock<Vec<Vec<u8>>>>,
-    
+
     /// Configuration parameters
     config: PoolConfig,
-    
+
     /// Advanced dependency manager for cascade validation
     dependency_manager: Option<Arc<TxDependencyManager>>,
-    
+
     /// Priority scheduler for age-based anti-starvation
     priority_scheduler: Arc<PriorityScheduler>,
-    
+
     /// Multi-dimensional index for efficient querying
     multi_dimensional_index: Arc<MultiDimensionalIndex>,
 
     /// Deterministic ordering engine for consensus-safe transaction ordering
     deterministic_ordering: Arc<DeterministicOrderingEngine>,
-    
+
     /// Orphan transaction manager untuk menangani transaksi dengan missing parents
     orphan_manager: Arc<OrphanManager>,
-    
+
     /// Advanced orphan management: deferred resolution dengan throttling
     deferred_resolver: Arc<DeferredResolver>,
-    
+
     /// Advanced orphan management: recursive chain linking dengan BFS
     orphan_linker: Arc<RecursiveOrphanLinker>,
-    
+
     /// Memory limiter untuk deterministic mempool size management
     memory_limiter: Arc<MempoolLimiter>,
-    
+
     /// Resource optimizer untuk multi-tier storage dan hybrid eviction
     resource_optimizer: Arc<ResourceOptimizer>,
-    
+
     /// KvStore reference untuk persistence dan validation
     kv_store: Option<Arc<KvStore>>,
-    
+
     /// Validator untuk checking missing inputs
     validator: Option<Arc<PoolValidator>>,
 
@@ -360,42 +365,58 @@ impl TransactionPool {
             orphan_ttl_ns: config.orphan_ttl_secs as u64 * 1_000_000_000,
             ..Default::default()
         };
-        
+
         let orphan_manager = Arc::new(OrphanManager::new(orphan_config, kv_store.clone()));
         let validator = Arc::new(PoolValidator::new(kv_store.clone()));
-        
+
         // Initialize memory limiter dengan default configuration
         let memory_config = MempoolLimiterConfig::default();
         let memory_limiter = Arc::new(MempoolLimiter::new(memory_config));
-        
+
         // Initialize resource optimizer dengan real kv_store
         let resource_config = ResourceOptimizerConfig::default();
-        let resource_optimizer = Arc::new(ResourceOptimizer::new(kv_store.clone(), resource_config));
-        
+        let resource_optimizer =
+            Arc::new(ResourceOptimizer::new(kv_store.clone(), resource_config));
+
         // Create fee filter before moving config
-        let fee_filter = Arc::new(RwLock::new(FeeFilter::new(config.min_fee_rate, config.dynamic_fee_bump_percent)));
-        
+        let fee_filter = Arc::new(RwLock::new(FeeFilter::new(
+            config.min_fee_rate,
+            config.dynamic_fee_bump_percent,
+        )));
+
         // Create admission controller with kv_store for trend persistence
         let admission_controller = if let Some(ref kv_store) = kv_store {
             Arc::new(AdmissionController::with_kv_store(kv_store.clone()))
         } else {
             Arc::new(AdmissionController::new())
         };
-        
+
         // Initialize conflict ordering integration
         let conflict_config = ConflictOrderingIntegrationConfig::default();
-        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, kv_store.clone()));
-        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(kv_store.clone(), conflict_ordering_integration.clone()));
-        let fee_balancer = kv_store.as_ref().map(|kv| Arc::new(FeeBalancer::new(Arc::clone(kv))));
-        
+        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(
+            conflict_config,
+            kv_store.clone(),
+        ));
+        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(
+            kv_store.clone(),
+            conflict_ordering_integration.clone(),
+        ));
+        let fee_balancer = kv_store
+            .as_ref()
+            .map(|kv| Arc::new(FeeBalancer::new(Arc::clone(kv))));
+
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
             orphans: Arc::new(RwLock::new(Vec::new())),
             config,
             dependency_manager: None,
-            priority_scheduler: Arc::new(PriorityScheduler::new(PrioritySchedulerConfig::default())),
+            priority_scheduler: Arc::new(
+                PriorityScheduler::new(PrioritySchedulerConfig::default()),
+            ),
             multi_dimensional_index: Arc::new(MultiDimensionalIndex::new()),
-            deterministic_ordering: Arc::new(DeterministicOrderingEngine::new(DeterministicOrderingEngineConfig::default())),
+            deterministic_ordering: Arc::new(DeterministicOrderingEngine::new(
+                DeterministicOrderingEngineConfig::default(),
+            )),
             orphan_manager: orphan_manager.clone(),
             deferred_resolver: Arc::new(DeferredResolver::new(50, 10000)),
             orphan_linker: Arc::new(RecursiveOrphanLinker::new(orphan_manager, 10)),
@@ -440,15 +461,15 @@ impl TransactionPool {
         let capacity = self.config.max_transactions_per_source as f64;
         let refill_rate = capacity / self.config.rate_limit_window_secs as f64; // tokens per second
 
-        let mut bucket = self.source_rate_buckets
+        let mut bucket = self
+            .source_rate_buckets
             .entry(source_key.to_vec())
             .or_insert_with(|| TokenBucket::new(capacity, refill_rate));
 
         if !bucket.try_consume(1.0) {
             return Err(format!(
                 "Rate limit exceeded for source - max {} transactions per {} seconds",
-                self.config.max_transactions_per_source,
-                self.config.rate_limit_window_secs
+                self.config.max_transactions_per_source, self.config.rate_limit_window_secs
             ));
         }
 
@@ -472,7 +493,8 @@ impl TransactionPool {
 
     pub fn persist_min_fee_rate(&self, min_fee_rate: u64) -> Result<(), String> {
         if let Some(ref kv_store) = self.kv_store {
-            kv_store.put_mempool_min_fee_rate(min_fee_rate)
+            kv_store
+                .put_mempool_min_fee_rate(min_fee_rate)
                 .map_err(|e| format!("Failed to persist min fee rate: {}", e))
         } else {
             Ok(())
@@ -491,7 +513,8 @@ impl TransactionPool {
             .unwrap_or_default()
             .as_secs();
 
-        let total_age: u64 = pool.values()
+        let total_age: u64 = pool
+            .values()
             .map(|entry| now.saturating_sub(entry.arrival_time))
             .sum();
 
@@ -544,7 +567,8 @@ impl TransactionPool {
 
     /// Advanced admission control with resource monitoring
     fn enforce_advanced_admission(&self, fee_rate: u64) -> Result<u64, String> {
-        let (should_admit, multiplier) = self.admission_controller.should_admit_transaction(fee_rate);
+        let (should_admit, multiplier) =
+            self.admission_controller.should_admit_transaction(fee_rate);
 
         if !should_admit {
             return Err("Transaction rejected due to resource constraints".to_string());
@@ -582,16 +606,13 @@ impl TransactionPool {
     }
 
     /// Create new transaction pool with dependency manager and KvStore
-    pub fn new_with_dependency_manager(
-        config: PoolConfig,
-        kv_store: Arc<KvStore>,
-    ) -> Self {
+    pub fn new_with_dependency_manager(config: PoolConfig, kv_store: Arc<KvStore>) -> Self {
         let dep_manager = Arc::new(TxDependencyManager::new(kv_store.clone()));
         let ordering_engine = DeterministicOrderingEngine::with_storage(
             DeterministicOrderingEngineConfig::default(),
             kv_store.clone(),
         );
-        
+
         // Initialize orphan manager dengan strict RAM limits
         let orphan_config = OrphanPoolConfig {
             max_orphans: (config.max_orphan_size as f64 * 0.8) as usize,
@@ -599,36 +620,50 @@ impl TransactionPool {
             orphan_ttl_ns: config.orphan_ttl_secs as u64 * 1_000_000_000,
             ..Default::default()
         };
-        
+
         let orphan_manager = Arc::new(OrphanManager::new(orphan_config, Some(kv_store.clone())));
         let validator = Arc::new(PoolValidator::new(Some(kv_store.clone())));
-        
+
         // Initialize memory limiter dengan default configuration
         let memory_config = MempoolLimiterConfig::default();
         let memory_limiter = Arc::new(MempoolLimiter::new(memory_config));
-        
+
         // Initialize resource optimizer dengan real kv_store
         let resource_config = ResourceOptimizerConfig::default();
-        let resource_optimizer = Arc::new(ResourceOptimizer::new(Some(kv_store.clone()), resource_config));
-        
+        let resource_optimizer = Arc::new(ResourceOptimizer::new(
+            Some(kv_store.clone()),
+            resource_config,
+        ));
+
         // Create fee filter before moving config
-        let fee_filter = Arc::new(RwLock::new(FeeFilter::new(config.min_fee_rate, config.dynamic_fee_bump_percent)));
-        
+        let fee_filter = Arc::new(RwLock::new(FeeFilter::new(
+            config.min_fee_rate,
+            config.dynamic_fee_bump_percent,
+        )));
+
         // Create admission controller with kv_store for trend persistence
         let admission_controller = Arc::new(AdmissionController::with_kv_store(kv_store.clone()));
-        
+
         // Initialize conflict ordering integration
         let conflict_config = ConflictOrderingIntegrationConfig::default();
-        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(conflict_config, Some(kv_store.clone())));
-        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(Some(kv_store.clone()), conflict_ordering_integration.clone()));
+        let conflict_ordering_integration = Arc::new(ConflictOrderingIntegration::new(
+            conflict_config,
+            Some(kv_store.clone()),
+        ));
+        let parallel_selection = Arc::new(ParallelSelectionBuilder::new(
+            Some(kv_store.clone()),
+            conflict_ordering_integration.clone(),
+        ));
         let fee_balancer = Some(Arc::new(FeeBalancer::new(kv_store.clone())));
-        
+
         let mut pool = Self {
             by_hash: Arc::new(RwLock::new(IndexMap::new())),
             orphans: Arc::new(RwLock::new(Vec::new())),
             config,
             dependency_manager: Some(dep_manager),
-            priority_scheduler: Arc::new(PriorityScheduler::new(PrioritySchedulerConfig::default())),
+            priority_scheduler: Arc::new(
+                PriorityScheduler::new(PrioritySchedulerConfig::default()),
+            ),
             multi_dimensional_index: Arc::new(MultiDimensionalIndex::new()),
             deterministic_ordering: Arc::new(ordering_engine),
             orphan_manager: orphan_manager.clone(),
@@ -680,9 +715,14 @@ impl TransactionPool {
     ///   to prevent stack overflow from circular dependencies
     ///
     /// Thread Safety: Arc<Transaction> used for zero-copy sharing
-    pub fn add_transaction(&self, tx: Transaction, total_fee: u64, size_bytes: usize) -> Result<(), String> {
-        let tx_hash = bincode::serialize(&tx.id)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+    pub fn add_transaction(
+        &self,
+        tx: Transaction,
+        total_fee: u64,
+        size_bytes: usize,
+    ) -> Result<(), String> {
+        let tx_hash =
+            bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
         let fee_rate = if size_bytes > 0 {
             total_fee / size_bytes as u64
@@ -691,13 +731,13 @@ impl TransactionPool {
         };
 
         let source_key = self.derive_source_key(&tx);
-        
+
         // Advanced admission control with resource monitoring
         let effective_fee_rate = self.enforce_advanced_admission(fee_rate)?;
-        
+
         // Fee density filtering for efficiency prioritization
         self.check_fee_density(effective_fee_rate, size_bytes)?;
-        
+
         // Update fee filter based on current mempool state
         {
             let mut fee_filter = self.fee_filter.write();
@@ -709,15 +749,26 @@ impl TransactionPool {
             let avg_age = self.calculate_average_transaction_age();
             let _ = balancer.update_congestion(self.size(), self.config.max_pool_size, avg_age);
         }
-        
+
         self.enforce_minimum_fee_rate(fee_rate)?;
         self.enforce_source_rate_limit(&source_key)?;
 
         // Calculate transaction weight (includes overhead)
         let tx_weight = self.memory_limiter.calculate_tx_weight(&tx);
-        
+
+        // Enforce configurable pool size limit before resource-intensive work
+        if self.size() >= self.config.max_pool_size {
+            return Err(format!(
+                "Pool size limit reached (max {})",
+                self.config.max_pool_size
+            ));
+        }
+
         // Check if adding this transaction would exceed memory limit
-        if self.memory_limiter.would_exceed_limit(tx_weight.total_weight) {
+        if self
+            .memory_limiter
+            .would_exceed_limit(tx_weight.total_weight)
+        {
             // Build priority map from scheduler for eviction decisions
             let priorities = self.priority_scheduler.priorities.read();
             let priority_map: std::collections::HashMap<Vec<u8>, f64> = priorities
@@ -725,26 +776,32 @@ impl TransactionPool {
                 .map(|(hash, priority)| (hash.clone(), priority.score))
                 .collect();
             drop(priorities);
-            
+
             // Try to make space via cascade eviction
-            let eviction_result = self.memory_limiter.make_space_for(tx_weight.total_weight, &priority_map);
-            
+            let eviction_result = self
+                .memory_limiter
+                .make_space_for(tx_weight.total_weight, &priority_map);
+
             if eviction_result.freed_weight < tx_weight.total_weight {
                 return Err(format!(
                     "Cannot fit transaction (need {} bytes, freed only {} bytes)",
                     tx_weight.total_weight, eviction_result.freed_weight
                 ));
             }
-            
+
             // Remove evicted transactions from pool
             let mut pool = self.by_hash.write();
             for evicted_hash in &eviction_result.evicted_hashes {
                 pool.swap_remove(evicted_hash);
-                self.priority_scheduler.unregister_transaction(evicted_hash)
+                self.priority_scheduler
+                    .unregister_transaction(evicted_hash)
                     .ok();
                 // Remove from persistent storage
                 if let Err(e) = self.remove_from_disk(evicted_hash) {
-                    eprintln!("Warning: Failed to remove evicted transaction from disk: {}", e);
+                    eprintln!(
+                        "Warning: Failed to remove evicted transaction from disk: {}",
+                        e
+                    );
                 }
             }
             drop(pool);
@@ -755,14 +812,12 @@ impl TransactionPool {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        
-        let conflict_result = self.conflict_ordering_integration.register_transaction(
-            &tx,
-            tx_hash.clone(),
-            total_fee,
-            arrival_time_ms,
-        ).map_err(|e| format!("Conflict detection error: {}", e))?;
-        
+
+        let conflict_result = self
+            .conflict_ordering_integration
+            .register_transaction(&tx, tx_hash.clone(), total_fee, arrival_time_ms)
+            .map_err(|e| format!("Conflict detection error: {}", e))?;
+
         // Check for double-spend conflicts - use deterministic supremacy rules
         if conflict_result.has_double_spend {
             // Process all conflicts with deterministic tie-breaking:
@@ -773,20 +828,29 @@ impl TransactionPool {
                 fee_rate,
                 &conflict_result.detected_conflicts,
             )?;
-            
+
             if !should_accept_new {
                 // Reject the new transaction - existing transaction(s) have higher priority
-                return Err("Transaction rejected due to conflict with higher-priority transaction".to_string());
+                return Err(
+                    "Transaction rejected due to conflict with higher-priority transaction"
+                        .to_string(),
+                );
             }
-            
+
             // Remove all conflicting transactions from pool and storage
             // They have lower priority and must be evicted
             for conflicting_hash in &conflict_result.detected_conflicts {
                 if self.remove(conflicting_hash).is_some() {
                     // Storage sync is handled internally by remove()
                     // Remove from conflict graph and cascade
-                    if let Err(e) = self.conflict_ordering_integration.remove_transaction_cascade(conflicting_hash) {
-                        eprintln!("Warning: Failed to cascade remove conflicting transaction: {}", e);
+                    if let Err(e) = self
+                        .conflict_ordering_integration
+                        .remove_transaction_cascade(conflicting_hash)
+                    {
+                        eprintln!(
+                            "Warning: Failed to cascade remove conflicting transaction: {}",
+                            e
+                        );
                     }
                 }
             }
@@ -797,13 +861,7 @@ impl TransactionPool {
             match validator.validate_transaction(&tx) {
                 Ok(ValidationResult::Valid) => {
                     // All inputs available - add to main pool
-                    return self._add_to_main_pool(
-                        tx_hash,
-                        tx,
-                        total_fee,
-                        size_bytes,
-                        fee_rate,
-                    );
+                    return self._add_to_main_pool(tx_hash, tx, total_fee, size_bytes, fee_rate);
                 }
                 Ok(ValidationResult::MissingInputs(missing_indices)) => {
                     // Some inputs missing - try orphan pool
@@ -843,7 +901,7 @@ impl TransactionPool {
         conflicting_hashes: &[Vec<u8>],
     ) -> Result<bool, String> {
         if conflicting_hashes.is_empty() {
-            return Ok(true);  // No conflicts, accept the new transaction
+            return Ok(true); // No conflicts, accept the new transaction
         }
 
         // Find the highest-priority conflicting transaction
@@ -855,7 +913,8 @@ impl TransactionPool {
 
             // Update highest if this one has higher fee or same fee with smaller hash
             if existing_fee_rate > highest_fee_rate
-                || (existing_fee_rate == highest_fee_rate && conflicting_hash < &highest_priority_hash)
+                || (existing_fee_rate == highest_fee_rate
+                    && conflicting_hash < &highest_priority_hash)
             {
                 highest_priority_hash = conflicting_hash.clone();
                 highest_fee_rate = existing_fee_rate;
@@ -885,22 +944,27 @@ impl TransactionPool {
     ) -> Result<(), String> {
         // Calculate transaction weight (includes overhead) - do this before moving tx
         let tx_weight = self.memory_limiter.calculate_tx_weight(&tx);
-        
+
         // Check if adding this transaction would exceed memory limit
-        if self.memory_limiter.would_exceed_limit(tx_weight.total_weight) {
+        if self
+            .memory_limiter
+            .would_exceed_limit(tx_weight.total_weight)
+        {
             return Err("Transaction would exceed memory limit".to_string());
         }
 
         // Use ResourceOptimizer for tiered storage
         let tx_arc = Arc::new(tx);
-        self.resource_optimizer.add_transaction(tx_hash.clone(), tx_arc.clone(), fee_rate)?;
+        self.resource_optimizer
+            .add_transaction(tx_hash.clone(), tx_arc.clone(), fee_rate)?;
 
         // Register with priority scheduler
         let arrival_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        self.priority_scheduler.register_transaction(tx_hash.clone(), fee_rate, arrival_time)
+        self.priority_scheduler
+            .register_transaction(tx_hash.clone(), fee_rate, arrival_time)
             .map_err(|e| format!("Priority scheduler error: {}", e))?;
 
         // Register with multi-dimensional index
@@ -912,16 +976,25 @@ impl TransactionPool {
             size_bytes,
             total_fee,
         );
-        self.multi_dimensional_index.insert(indexed_tx)
+        self.multi_dimensional_index
+            .insert(indexed_tx)
             .map_err(|e| format!("Index error: {}", e))?;
 
         // Register with deterministic ordering engine
-        self.deterministic_ordering.add_transaction(tx_hash.clone(), fee_rate, arrival_time, size_bytes, total_fee)
+        self.deterministic_ordering
+            .add_transaction(
+                tx_hash.clone(),
+                fee_rate,
+                arrival_time,
+                size_bytes,
+                total_fee,
+            )
             .map_err(|e| format!("Deterministic ordering error: {}", e))?;
 
         // Register transaction weight with memory limiter
         let tx_weight = self.memory_limiter.calculate_tx_weight(&tx_arc);
-        self.memory_limiter.add_tx_weight(tx_hash.clone(), tx_weight)
+        self.memory_limiter
+            .add_tx_weight(tx_hash.clone(), tx_weight)
             .map_err(|e| format!("Memory tracking error: {}", e))?;
 
         // Adopt waiting orphans jika transaksi ini memiliki outputs
@@ -950,8 +1023,8 @@ impl TransactionPool {
         size_bytes: usize,
     ) -> Result<(), String> {
         let tx_arc = Arc::new(tx);
-        let tx_hash = bincode::serialize(&tx_arc.id)
-            .map_err(|e| format!("Serialization error: {}", e))?;
+        let tx_hash =
+            bincode::serialize(&tx_arc.id).map_err(|e| format!("Serialization error: {}", e))?;
 
         // Extract missing inputs as OutPoints
         let missing_inputs: Vec<OutPoint> = missing_indices
@@ -971,13 +1044,8 @@ impl TransactionPool {
             .collect();
 
         // Add to orphan pool
-        self.orphan_manager.add_orphan(
-            tx_hash,
-            tx_arc,
-            missing_inputs,
-            size_bytes,
-            total_fee,
-        )?;
+        self.orphan_manager
+            .add_orphan(tx_hash, tx_arc, missing_inputs, size_bytes, total_fee)?;
 
         // Mark as orphan in main pool for tracking
         // (Some implementations may want to track this)
@@ -988,7 +1056,7 @@ impl TransactionPool {
     /// Adopt waiting orphans when a new transaction with outputs arrives
     fn _adopt_waiting_orphans(&self, tx: &Transaction) -> Result<(), String> {
         // Maximum recursion depth to prevent stack overflow dari circular dependencies
-        
+
         // Use advanced orphan linker untuk mendapatkan seluruh adoption chain
         if let Ok(chain_result) = self.orphan_linker.link_orphan_chain(tx) {
             // Schedule adopted transactions untuk deferred batch processing
@@ -998,15 +1066,21 @@ impl TransactionPool {
                 let tx_hash = bincode::serialize(&tx.id)
                     .map_err(|e| format!("Serialization error: {}", e))?;
                 let priority = chain_result.maximum_depth as u64;
-                let _ = self.deferred_resolver.schedule_resolution(tx_hash, priority);
+                let _ = self
+                    .deferred_resolver
+                    .schedule_resolution(tx_hash, priority);
             }
         }
-        
+
         self._adopt_waiting_orphans_recursive(tx, 0)
     }
 
     /// Recursively adopt waiting orphans dengan depth limit
-    fn _adopt_waiting_orphans_recursive(&self, tx: &Transaction, depth: usize) -> Result<(), String> {
+    fn _adopt_waiting_orphans_recursive(
+        &self,
+        tx: &Transaction,
+        depth: usize,
+    ) -> Result<(), String> {
         const MAX_ADOPTION_DEPTH: usize = 10;
 
         if depth > MAX_ADOPTION_DEPTH {
@@ -1023,7 +1097,10 @@ impl TransactionPool {
             };
 
             // Try to adopt orphans waiting for this output
-            match self.orphan_manager.process_orphans_for_parent(&parent_outpoint) {
+            match self
+                .orphan_manager
+                .process_orphans_for_parent(&parent_outpoint)
+            {
                 Ok(adoption_result) => {
                     // Re-validate each adopted transaction
                     for adopted_tx in adoption_result.adopted_txs {
@@ -1031,11 +1108,7 @@ impl TransactionPool {
                         let size = adopted_tx.inputs.len() * 32; // Rough estimate
                         let fee = 1000u64; // Default fee estimate
 
-                        match self.add_transaction(
-                            (*adopted_tx).clone(),
-                            fee,
-                            size,
-                        ) {
+                        match self.add_transaction((*adopted_tx).clone(), fee, size) {
                             Ok(()) => {
                                 // Successfully adopted and added to main pool
                             }
@@ -1063,7 +1136,9 @@ impl TransactionPool {
             .get_mut(tx_hash)
             .ok_or_else(|| "Transaction not found".to_string())?;
 
-        entry.status.transition_to(status)
+        entry
+            .status
+            .transition_to(status)
             .map_err(|e| format!("Status transition error: {:?}", e))?;
 
         // Update orphan index if needed
@@ -1088,12 +1163,12 @@ impl TransactionPool {
     }
 
     /// Remove transaction from pool
-    /// 
+    ///
     /// This method removes a transaction from all in-memory indexes AND persistent storage.
     /// It ensures complete removal from both mempool and disk to maintain consistency.
     pub fn remove(&self, tx_hash: &[u8]) -> Option<PoolEntry> {
         let mut pool = self.by_hash.write();
-        
+
         if let Some(entry) = pool.shift_remove(tx_hash) {
             let mut orphans = self.orphans.write();
             orphans.retain(|h| h != tx_hash);
@@ -1101,7 +1176,9 @@ impl TransactionPool {
             drop(orphans);
 
             // Unregister from priority scheduler
-            let _ = self.priority_scheduler.unregister_transaction(&tx_hash.to_vec());
+            let _ = self
+                .priority_scheduler
+                .unregister_transaction(&tx_hash.to_vec());
 
             // Unregister from multi-dimensional index
             let _ = self.multi_dimensional_index.remove(&tx_hash.to_vec());
@@ -1114,7 +1191,10 @@ impl TransactionPool {
 
             // CRITICAL: Sync with persistent storage to ensure consistency
             if let Err(e) = self.remove_from_disk(tx_hash) {
-                eprintln!("Warning: Failed to remove transaction from disk during pool removal: {}", e);
+                eprintln!(
+                    "Warning: Failed to remove transaction from disk during pool removal: {}",
+                    e
+                );
             }
 
             Some(entry)
@@ -1186,7 +1266,7 @@ impl TransactionPool {
     pub fn register_transaction_dependency(&self, _tx_bytes: &[u8]) -> Result<(), String> {
         if self.dependency_manager.is_some() {
             // In production, you would deserialize tx_bytes to get Transaction
-            // For now, we just track that dependency tracking is available  
+            // For now, we just track that dependency tracking is available
             // The actual transaction object would come from the pool entry
             return Ok(());
         }
@@ -1246,7 +1326,11 @@ impl TransactionPool {
     /// Query transactions by fee rate range
     ///
     /// Dimensi Ekonomi: Returns transactions within fee range [min_fee, max_fee]
-    pub fn query_by_fee_range(&self, min_fee: u64, max_fee: u64) -> Result<Vec<IndexedTransaction>, String> {
+    pub fn query_by_fee_range(
+        &self,
+        min_fee: u64,
+        max_fee: u64,
+    ) -> Result<Vec<IndexedTransaction>, String> {
         self.multi_dimensional_index
             .query_economic_range(min_fee, max_fee)
             .map_err(|e| format!("Fee range query error: {}", e))
@@ -1255,7 +1339,11 @@ impl TransactionPool {
     /// Query transactions by arrival time range
     ///
     /// Dimensi Temporal: Returns transactions with arrival in [start_time, end_time]
-    pub fn query_by_time_range(&self, start_time: u64, end_time: u64) -> Result<Vec<IndexedTransaction>, String> {
+    pub fn query_by_time_range(
+        &self,
+        start_time: u64,
+        end_time: u64,
+    ) -> Result<Vec<IndexedTransaction>, String> {
         self.multi_dimensional_index
             .query_temporal_range(start_time, end_time)
             .map_err(|e| format!("Time range query error: {}", e))
@@ -1264,7 +1352,10 @@ impl TransactionPool {
     /// Query transactions by dependency count
     ///
     /// Dimensi Struktural: Returns transactions with at least min_deps children/dependents
-    pub fn query_by_min_dependents(&self, min_deps: u32) -> Result<Vec<IndexedTransaction>, String> {
+    pub fn query_by_min_dependents(
+        &self,
+        min_deps: u32,
+    ) -> Result<Vec<IndexedTransaction>, String> {
         self.multi_dimensional_index
             .query_structural_min_dependents(min_deps)
             .map_err(|e| format!("Dependency query error: {}", e))
@@ -1294,7 +1385,10 @@ impl TransactionPool {
     }
 
     /// Get transactions older than timestamp (starvation prevention)
-    pub fn get_transactions_before_time(&self, timestamp: u64) -> Result<Vec<IndexedTransaction>, String> {
+    pub fn get_transactions_before_time(
+        &self,
+        timestamp: u64,
+    ) -> Result<Vec<IndexedTransaction>, String> {
         self.multi_dimensional_index
             .query_temporal_before(timestamp)
             .map_err(|e| format!("Before time query error: {}", e))
@@ -1316,9 +1410,17 @@ impl TransactionPool {
     ///
     /// CONSENSUS CRITICAL: This ordering is deterministic across all validator nodes.
     /// Uses tie-breaking by lexicographic transaction hash comparison.
-    pub fn get_ordered_transactions_deterministic(&self, limit: usize) -> Result<Vec<(Vec<u8>, u64)>, String> {
-        let ordered = self.deterministic_ordering.get_ordered_transactions(limit)?;
-        Ok(ordered.into_iter().map(|tx| (tx.tx_hash, tx.fee_rate)).collect())
+    pub fn get_ordered_transactions_deterministic(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(Vec<u8>, u64)>, String> {
+        let ordered = self
+            .deterministic_ordering
+            .get_ordered_transactions(limit)?;
+        Ok(ordered
+            .into_iter()
+            .map(|tx| (tx.tx_hash, tx.fee_rate))
+            .collect())
     }
 
     /// Get all transactions (defensive copy for iteration)
@@ -1362,7 +1464,9 @@ impl TransactionPool {
     }
 
     /// Process deferred resolution batch (untuk background task)
-    pub fn process_deferred_resolutions(&self) -> Result<Vec<super::advanced_orphan_management::ResolutionTask>, String> {
+    pub fn process_deferred_resolutions(
+        &self,
+    ) -> Result<Vec<super::advanced_orphan_management::ResolutionTask>, String> {
         self.deferred_resolver.process_batch()
     }
 
@@ -1385,10 +1489,22 @@ impl TransactionPool {
     pub fn get_stats(&self) -> PoolStats {
         let pool = self.by_hash.read();
 
-        let pending_count = pool.values().filter(|e| e.status == TransactionStatus::Pending).count();
-        let validated_count = pool.values().filter(|e| e.status == TransactionStatus::Validated).count();
-        let orphan_count = pool.values().filter(|e| e.status == TransactionStatus::InOrphanPool).count();
-        let rejected_count = pool.values().filter(|e| e.status == TransactionStatus::Rejected).count();
+        let pending_count = pool
+            .values()
+            .filter(|e| e.status == TransactionStatus::Pending)
+            .count();
+        let validated_count = pool
+            .values()
+            .filter(|e| e.status == TransactionStatus::Validated)
+            .count();
+        let orphan_count = pool
+            .values()
+            .filter(|e| e.status == TransactionStatus::InOrphanPool)
+            .count();
+        let rejected_count = pool
+            .values()
+            .filter(|e| e.status == TransactionStatus::Rejected)
+            .count();
 
         let total_fees: u64 = pool.values().map(|e| e.total_fee).sum();
         let total_size: usize = pool.values().map(|e| e.size_bytes).sum();
@@ -1413,14 +1529,14 @@ impl TransactionPool {
         if let Some(ref kv_store) = self.kv_store {
             let tx_hash = tx.id.as_bytes().to_vec();
             let mut tx_value = crate::storage::schema::TransactionValue::from(tx);
-            
+
             // Add checksum for corruption detection
             let checksum = self.calculate_checksum(tx);
             // Store checksum in a way that can be verified later
             // For simplicity, we'll modify the fee field to include checksum
             // In production, we'd add a checksum field to TransactionValue
             tx_value.fee = ((tx_value.fee as u128) << 64) as u64 | (checksum as u64);
-            
+
             kv_store.put_mempool_transaction(tx_hash, tx_value);
             Ok(())
         } else {
@@ -1446,7 +1562,7 @@ impl TransactionPool {
         // This would typically be done using RocksDB iterators on the mempool column family.
         // For brevity, this implementation focuses on the reconciliation
         // and cleanup aspects.
-        
+
         Ok(())
     }
 
@@ -1458,12 +1574,12 @@ impl TransactionPool {
         };
         // Note: In full implementation, we'd scan CF_MEMPOOL to get all persisted hashes
         // For now, we'll check transactions that are currently in memory
-        
+
         let tx_hashes: Vec<Vec<u8>> = {
             let pool = self.by_hash.read();
             pool.keys().cloned().collect()
         };
-        
+
         // Check each transaction against main blockchain storage
         for tx_hash in tx_hashes {
             // If transaction exists in main blockchain storage, it means it's already in a block
@@ -1478,11 +1594,14 @@ impl TransactionPool {
                 }
                 Err(e) => {
                     // Log error but continue
-                    eprintln!("Warning: Error checking transaction against blockchain: {}", e);
+                    eprintln!(
+                        "Warning: Error checking transaction against blockchain: {}",
+                        e
+                    );
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -1490,7 +1609,7 @@ impl TransactionPool {
     fn calculate_checksum(&self, tx: &Transaction) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         tx.id.hash(&mut hasher);
         tx.inputs.len().hash(&mut hasher);
@@ -1510,7 +1629,9 @@ impl TransactionPool {
     /// that can be processed in parallel without race conditions on UTXO state.
     /// Uses ConflictGraph to identify independent transaction sets.
     pub fn get_parallel_batches(&self) -> Result<Vec<Vec<Arc<Transaction>>>, String> {
-        let parallel_groups = self.conflict_ordering_integration.get_parallel_validation_groups()
+        let parallel_groups = self
+            .conflict_ordering_integration
+            .get_parallel_validation_groups()
             .map_err(|e| format!("Failed to get parallel groups: {}", e))?;
 
         let mut batches = Vec::new();
@@ -1550,9 +1671,14 @@ impl TransactionPool {
     /// - All transactions are validated for conflicts and properly sequenced for execution
     ///
     /// CONSENSUS CRITICAL: This ordering MUST produce identical results for identical mempool state
-    pub fn prepare_block_candidate(&self, max_weight: usize) -> Result<Vec<Arc<Transaction>>, String> {
+    pub fn prepare_block_candidate(
+        &self,
+        max_weight: usize,
+    ) -> Result<Vec<Arc<Transaction>>, String> {
         // Build block using canonical ordering from conflict & ordering integration
-        let block_result = self.conflict_ordering_integration.build_block_canonical(max_weight)
+        let block_result = self
+            .conflict_ordering_integration
+            .build_block_canonical(max_weight)
             .map_err(|e| format!("Failed to build canonical block: {}", e))?;
 
         let mut transactions = Vec::new();
@@ -1577,16 +1703,20 @@ impl TransactionPool {
     ///
     /// Returns disjoint sets of transactions that can be processed in parallel
     /// while maintaining canonical ordering guarantees within each set.
-    pub fn prepare_parallel_block_candidates(&self, max_weight: usize) -> Result<Vec<Vec<Arc<Transaction>>>, String> {
+    pub fn prepare_parallel_block_candidates(
+        &self,
+        max_weight: usize,
+    ) -> Result<Vec<Vec<Arc<Transaction>>>, String> {
         // First get canonical transactions
         let canonical_txs = self.prepare_block_candidate(max_weight)?;
 
         // Then build parallel sets from canonical transactions
-        self.parallel_selection_builder.build_parallel_sets(&canonical_txs, max_weight)
+        self.parallel_selection_builder
+            .build_parallel_sets(&canonical_txs, max_weight)
     }
 
     /// Verify that transaction list respects canonical ordering invariants
-    /// 
+    ///
     /// This verification is performed to ensure:
     /// 1. No duplicate transactions
     /// 2. No conflicting UTXOs claimed multiple times
@@ -1596,12 +1726,14 @@ impl TransactionPool {
         let mut spent_outputs = std::collections::HashSet::new();
 
         for tx in transactions {
-            let tx_hash = bincode::serialize(&tx.id)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let tx_hash =
+                bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
 
             // Check for duplicate transactions
             if !seen_hashes.insert(tx_hash.clone()) {
-                return Err(format!("Duplicate transaction in canonical block candidate"));
+                return Err(format!(
+                    "Duplicate transaction in canonical block candidate"
+                ));
             }
 
             // Check for conflicts (double-spending)
@@ -1653,7 +1785,8 @@ impl MempoolSnapshot {
     pub fn new(pool: &TransactionPool, block_height: u64) -> Self {
         let transactions = {
             let pool_lock = pool.by_hash.read();
-            pool_lock.iter()
+            pool_lock
+                .iter()
                 .map(|(hash, entry)| (hash.clone(), Arc::new(entry.transaction.clone())))
                 .collect()
         };
@@ -1700,13 +1833,13 @@ impl CanonicalOrderingEngine {
             // First: Fee rate (descending) - higher fee first
             let a_fee_rate = Self::calculate_fee_rate(a);
             let b_fee_rate = Self::calculate_fee_rate(b);
-            
+
             match b_fee_rate.cmp(&a_fee_rate) {
                 std::cmp::Ordering::Equal => {
                     // Second: Dependency rank (parents before children)
                     let a_deps = Self::get_dependency_rank(a);
                     let b_deps = Self::get_dependency_rank(b);
-                    
+
                     match a_deps.cmp(&b_deps) {
                         std::cmp::Ordering::Equal => {
                             // Third: Hash lexicographical (ascending)
@@ -1764,16 +1897,16 @@ impl SelectionEngine {
         max_block_size: usize,
     ) -> Result<Vec<Arc<Transaction>>, String> {
         let mut candidates = snapshot.get_all_transactions();
-        
+
         // Apply canonical sorting
         CanonicalOrderingEngine::apply_canonical_sort(&mut candidates);
-        
+
         // Filter out transactions with spent inputs
         let mut selected = Vec::new();
         let mut spent_outputs = std::collections::HashSet::new();
-        
+
         let mut current_size = 0;
-        
+
         for tx in candidates {
             if self.is_conflict_free(&tx, &spent_outputs)? {
                 // Check against storage for already spent UTXOs
@@ -1784,7 +1917,7 @@ impl SelectionEngine {
                     }
                     selected.push(tx.clone());
                     current_size += tx_size;
-                    
+
                     // Mark outputs as spent
                     for (i, _) in tx.outputs.iter().enumerate() {
                         spent_outputs.insert((tx.id.as_bytes().to_vec(), i as u32));
@@ -1792,7 +1925,7 @@ impl SelectionEngine {
                 }
             }
         }
-        
+
         Ok(selected)
     }
 
@@ -1815,8 +1948,11 @@ impl SelectionEngine {
     fn check_utxo_availability(&self, tx: &Transaction) -> Result<bool, String> {
         for input in &tx.inputs {
             let prev_tx_hash = input.prev_tx.as_bytes();
-            if !self.kv_store.utxo_exists(prev_tx_hash, input.index)
-                .map_err(|e| format!("Storage error: {}", e))? {
+            if !self
+                .kv_store
+                .utxo_exists(prev_tx_hash, input.index)
+                .map_err(|e| format!("Storage error: {}", e))?
+            {
                 return Ok(false);
             }
         }
@@ -1836,12 +1972,11 @@ pub struct PoolStats {
     pub total_size_bytes: usize,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use klomang_core::core::crypto::Hash;
     use crate::storage::kv_store::KvStore;
+    use klomang_core::core::crypto::Hash;
     use std::sync::Arc;
 
     fn create_test_transaction() -> Transaction {
@@ -1883,7 +2018,7 @@ mod tests {
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
         pool.add_transaction(tx.clone(), 1000, 200).unwrap();
-        
+
         let retrieved = pool.get(&tx_hash).unwrap();
         assert_eq!(retrieved.total_fee, 1000);
         assert_eq!(retrieved.size_bytes, 200);
@@ -1896,7 +2031,9 @@ mod tests {
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
         pool.add_transaction(tx, 1000, 200).unwrap();
-        assert!(pool.set_status(&tx_hash, TransactionStatus::Validated).is_ok());
+        assert!(pool
+            .set_status(&tx_hash, TransactionStatus::Validated)
+            .is_ok());
 
         let entry = pool.get(&tx_hash).unwrap();
         assert_eq!(entry.status, TransactionStatus::Validated);

@@ -1,141 +1,159 @@
 //! Transaction Pool Core - State machine for managing transaction lifecycle
-//! 
+//!
 //! This module implements a multi-indexed transaction pool with deterministic
 //! transaction selection for block building, incremental revalidation on block receipt,
 //! deterministic eviction under memory pressure, and UTXO conflict management with
 //! Replace-By-Fee support.
 
-pub mod status;
-pub mod pool;
-pub mod validation;
-pub mod selection;
-pub mod revalidation;
-pub mod eviction;
-pub mod conflict;
-pub mod ownership;
+pub mod admission_controller;
 pub mod advanced_conflicts;
-pub mod dependency_graph;
+pub mod advanced_dependency_manager;
+pub mod advanced_orphan_management;
 pub mod advanced_transaction_manager;
+pub mod background_batch_processor;
+pub mod cascade_coordinator;
+pub mod conflict;
 pub mod conflict_graph;
-pub mod rbf_manager;
 pub mod conflict_rbf_integration;
 pub mod conflict_rbf_tests;
-pub mod advanced_dependency_manager;
-pub mod cascade_coordinator;
-pub mod enhanced_validator;
-pub mod dependency_ordering_engine;
 pub mod dependency_eviction_system;
-pub mod storage_integration;
-pub mod recursive_dependency_tracker;
-pub mod recursive_dependency_manager;
-pub mod priority_pool;
-pub mod ordering_engine;
-pub mod priority_scheduler;
-pub mod multi_dimensional_index;
-pub mod priority_ordering;
+pub mod dependency_graph;
+pub mod dependency_ordering_engine;
 pub mod deterministic_ordering;
-pub mod parallel_partitioning;
-pub mod parallel_mempool;
-pub mod parallel_validator;
-pub mod parallel_transaction_index;
-pub mod lock_free_snapshot;
-pub mod parallel_sync_storage;
-pub mod orphan_manager;
-pub mod advanced_orphan_management;
-pub mod background_batch_processor;
-pub mod memory_limiter;
-pub mod resource_optimizer;
-pub mod admission_controller;
+pub mod enhanced_validator;
+pub mod eviction;
 pub mod graph_conflict_ordering;
 pub mod graph_conflict_ordering_integration;
-pub mod parallel_selection;
-pub mod set_packer;
+pub mod lock_free_snapshot;
+pub mod memory_limiter;
+pub mod multi_dimensional_index;
 pub mod multi_queue;
+pub mod ordering_engine;
+pub mod orphan_manager;
+pub mod ownership;
+pub mod parallel_mempool;
+pub mod parallel_partitioning;
+pub mod parallel_selection;
+pub mod parallel_sync_storage;
+pub mod parallel_transaction_index;
+pub mod parallel_validator;
+pub mod pool;
+pub mod priority_ordering;
+pub mod priority_pool;
+pub mod priority_scheduler;
+pub mod rbf_manager;
+pub mod recursive_dependency_manager;
+pub mod recursive_dependency_tracker;
+pub mod resource_optimizer;
+pub mod revalidation;
+pub mod selection;
+pub mod set_packer;
+pub mod status;
+pub mod storage_integration;
+pub mod validation;
 
-pub use status::{TransactionStatus, TransactionStatusError};
-pub use pool::{TransactionPool, PoolConfig, PoolEntry, PoolStats, FeeFilter};
-pub use validation::PoolValidator;
-pub use selection::{SelectionCriteria, SelectionStrategy, DeterministicSelector};
-pub use revalidation::{RevalidationEngine, RevalidationStats, ConflictInfo, RevalidationResult};
-pub use eviction::{EvictionEngine, EvictionPolicy, EvictionResult, EvictionScore, MempoolPressure, AgingProcessor, EvictionPredictor};
-pub use conflict::{UtxoTracker, UtxoConflictError, OutPoint, UtxoLock, ConflictStats};
-pub use ownership::{UtxoOwnershipManager, OwnershipError, TransactionAddedInfo, TransactionRemovedInfo, ConflictAnalysis};
-pub use advanced_conflicts::{ConflictMap, TxHash, ConflictType, ResolutionResult, ResolutionReason, OutPoint as AdvancedOutPoint};
-pub use dependency_graph::{DependencyGraph, TransactionDependency, ConflictPartition, DependencyGraphStats};
-pub use advanced_transaction_manager::{AdvancedTransactionManager, ManagerError, TransactionAdditionResult, ConflictAnalysis as AdvancedConflictAnalysis, ConflictStatus};
+pub use advanced_conflicts::{
+    ConflictMap, ConflictType, OutPoint as AdvancedOutPoint, ResolutionReason, ResolutionResult,
+    TxHash,
+};
+pub use advanced_dependency_manager::{
+    DependencyChain, DependencyLevel, DependencyStats, TxDependencyManager,
+};
+pub use advanced_orphan_management::{
+    ChainIntegrityReport, ChainResolutionResult, DeferredResolver, LinkerStats, OrphanChainLink,
+    RecursiveOrphanLinker, ResolutionStats, ResolutionTask,
+};
+pub use advanced_transaction_manager::{
+    AdvancedTransactionManager, ConflictAnalysis as AdvancedConflictAnalysis, ConflictStatus,
+    ManagerError, TransactionAdditionResult,
+};
+pub use background_batch_processor::{BackgroundBatchProcessor, BackgroundProcessorStats};
+pub use cascade_coordinator::{
+    CascadeEvent, CascadeEventHandler, CascadeStats, CascadeValidationCoordinator,
+    CascadeValidationResult,
+};
+pub use conflict::{ConflictStats, OutPoint, UtxoConflictError, UtxoLock, UtxoTracker};
 pub use conflict_graph::{ConflictGraph, ConflictGraphStats, ConflictNode};
-pub use parallel_selection::{ParallelSelectionBuilder, FeeBalancer};
-pub use set_packer::{SetPacker, SovereignSet};
-pub use multi_queue::{MultiQueueAdmissionSystem, QueueStats};
-pub use rbf_manager::{RBFManager, RBFChoice, RBFReason, RBFEvaluation};
-pub use conflict_rbf_integration::{ConflictRBFManager, AddTransactionResult, ConflictAnalysis as IntegrationConflictAnalysis};
-pub use advanced_dependency_manager::{TxDependencyManager, DependencyLevel, DependencyChain, DependencyStats};
-pub use cascade_coordinator::{CascadeValidationCoordinator, CascadeEvent, CascadeStats, CascadeValidationResult, CascadeEventHandler};
+pub use conflict_rbf_integration::{
+    AddTransactionResult, ConflictAnalysis as IntegrationConflictAnalysis, ConflictRBFManager,
+};
+pub use dependency_eviction_system::{
+    CascadeEvictionResult, DependencyEvictionSystem, EvictionReason, EvictionRecord, EvictionStats,
+};
+pub use dependency_graph::{
+    ConflictPartition, DependencyGraph, DependencyGraphStats, TransactionDependency,
+};
+pub use dependency_ordering_engine::{
+    AdjacencyList, DependencyOrderingEngine, InDegreeMap, TopologicalResult, TopologyStats,
+};
+pub use deterministic_ordering::{DeterministicOrderingEngine, OrderingValidation};
 pub use enhanced_validator::{EnhancedPoolValidator, EnhancedValidationResult};
-pub use dependency_ordering_engine::{DependencyOrderingEngine, TopologicalResult, TopologyStats, AdjacencyList, InDegreeMap};
-pub use dependency_eviction_system::{DependencyEvictionSystem, EvictionReason, EvictionRecord, EvictionStats, CascadeEvictionResult};
-pub use storage_integration::{StorageIntegration, ParentClassification, ParentVerification, StorageIntegrationStats};
-pub use recursive_dependency_tracker::{
-    RecursiveDependencyTracker, TxHash as RecursiveTxHash, DependencyResolutionStatus, AncestryValidation,
-    RecursiveDependencyStats, CascadeInvalidationResult,
+pub use eviction::{
+    AgingProcessor, EvictionEngine, EvictionPolicy, EvictionPredictor, EvictionResult,
+    EvictionScore, MempoolPressure,
 };
-pub use recursive_dependency_manager::{
-    RecursiveDependencyManager, RecursiviveDependencyConfig, TransactionWithStatus,
-    BulkResolutionResult,
-};
-pub use priority_pool::{
-    PriorityPool, TransactionPriority, PriorityPoolStats,
-};
-pub use ordering_engine::{
-    OrderingEngine, OrderingEngineConfig, OrderedTransaction, OrderingStats,
-};
-pub use priority_scheduler::{
-    PriorityScheduler, PrioritySchedulerConfig, DynamicPriority, PrioritySchedulerBuilder,
+pub use lock_free_snapshot::{LockFreeReadConfig, LockFreeReadLayer, MempoolSnapshot};
+pub use memory_limiter::{
+    EvictionCandidate, MemoryStats, MempoolLimiter, MempoolLimiterConfig, TransactionWeight,
+    WeightEvictionResult,
 };
 pub use multi_dimensional_index::{
-    MultiDimensionalIndex, IndexedTransaction, MultiDimensionalIndexStats,
+    IndexedTransaction, MultiDimensionalIndex, MultiDimensionalIndexStats,
 };
-pub use priority_ordering::{
-    PriorityBuckets, PrioritizedTransaction, PriorityOrderingConfig,
-    CrossBucketIterator, BucketStatistics, BucketInfo,
+pub use multi_queue::{MultiQueueAdmissionSystem, QueueStats};
+pub use ordering_engine::{
+    OrderedTransaction, OrderingEngine, OrderingEngineConfig, OrderingStats,
 };
-pub use deterministic_ordering::{
-    DeterministicOrderingEngine, OrderingValidation,
+pub use orphan_manager::{
+    AdoptionResult, OrphanEntry, OrphanEvictionPolicy, OrphanManager, OrphanPoolConfig, OrphanStats,
 };
+pub use ownership::{
+    ConflictAnalysis, OwnershipError, TransactionAddedInfo, TransactionRemovedInfo,
+    UtxoOwnershipManager,
+};
+pub use parallel_mempool::{ParallelAddResult, ParallelMempool, ShardStats, SubPool, SubPoolEntry};
 pub use parallel_partitioning::{
     ConflictFreePartitioner, PartitionConfig, PartitionResult, PartitionStats,
 };
-pub use parallel_mempool::{
-    ParallelMempool, SubPool, SubPoolEntry, ParallelAddResult, ShardStats,
-};
-pub use parallel_validator::{
-    ParallelValidator, ParallelValidatorConfig, ValidationTask, ValidationResult, ValidationStats,
+pub use parallel_selection::{FeeBalancer, ParallelSelectionBuilder};
+pub use parallel_sync_storage::{
+    StatusReport, StorageSyncConfig, StorageSyncManager, StorageSyncResult, SyncMetadata,
+    SyncStatus,
 };
 pub use parallel_transaction_index::{
-    ParallelTransactionIndex, ParallelIndexConfig, IndexedTransactionEntry, IndexedTransactionStatus, IndexStats,
+    IndexStats, IndexedTransactionEntry, IndexedTransactionStatus, ParallelIndexConfig,
+    ParallelTransactionIndex,
 };
-pub use lock_free_snapshot::{
-    LockFreeReadLayer, MempoolSnapshot, LockFreeReadConfig,
+pub use parallel_validator::{
+    ParallelValidator, ParallelValidatorConfig, ValidationResult, ValidationStats, ValidationTask,
 };
-pub use parallel_sync_storage::{
-    StorageSyncManager, StorageSyncConfig, StorageSyncResult, SyncStatus, SyncMetadata, StatusReport,
+pub use pool::{FeeFilter, PoolConfig, PoolEntry, PoolStats, TransactionPool};
+pub use priority_ordering::{
+    BucketInfo, BucketStatistics, CrossBucketIterator, PrioritizedTransaction, PriorityBuckets,
+    PriorityOrderingConfig,
 };
-pub use orphan_manager::{
-    OrphanManager, OrphanPoolConfig, OrphanEntry, OrphanStats, AdoptionResult, OrphanEvictionPolicy,
+pub use priority_pool::{PriorityPool, PriorityPoolStats, TransactionPriority};
+pub use priority_scheduler::{
+    DynamicPriority, PriorityScheduler, PrioritySchedulerBuilder, PrioritySchedulerConfig,
 };
-pub use advanced_orphan_management::{
-    DeferredResolver, ResolutionTask, ResolutionStats,
-    RecursiveOrphanLinker, OrphanChainLink, LinkerStats,
-    ChainResolutionResult, ChainIntegrityReport,
+pub use rbf_manager::{RBFChoice, RBFEvaluation, RBFManager, RBFReason};
+pub use recursive_dependency_manager::{
+    BulkResolutionResult, RecursiveDependencyManager, RecursiviveDependencyConfig,
+    TransactionWithStatus,
 };
-pub use background_batch_processor::{
-    BackgroundBatchProcessor, BackgroundProcessorStats,
-};
-pub use memory_limiter::{
-    MempoolLimiter, MempoolLimiterConfig, TransactionWeight,
-    EvictionCandidate, WeightEvictionResult, MemoryStats,
+pub use recursive_dependency_tracker::{
+    AncestryValidation, CascadeInvalidationResult, DependencyResolutionStatus,
+    RecursiveDependencyStats, RecursiveDependencyTracker, TxHash as RecursiveTxHash,
 };
 pub use resource_optimizer::{
-    ResourceOptimizer, ResourceOptimizerConfig, HotTier, ColdTier,
-    HybridPolicy, TransactionMetadata, HotTierStats, ResourceOptimizerStats,
+    ColdTier, HotTier, HotTierStats, HybridPolicy, ResourceOptimizer, ResourceOptimizerConfig,
+    ResourceOptimizerStats, TransactionMetadata,
 };
+pub use revalidation::{ConflictInfo, RevalidationEngine, RevalidationResult, RevalidationStats};
+pub use selection::{DeterministicSelector, SelectionCriteria, SelectionStrategy};
+pub use set_packer::{SetPacker, SovereignSet};
+pub use status::{TransactionStatus, TransactionStatusError};
+pub use storage_integration::{
+    ParentClassification, ParentVerification, StorageIntegration, StorageIntegrationStats,
+};
+pub use validation::PoolValidator;

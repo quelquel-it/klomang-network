@@ -3,11 +3,11 @@
 #[cfg(test)]
 mod conflict_management_tests {
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput, SigHashType};
+    use klomang_core::core::state::transaction::{SigHashType, Transaction, TxInput};
     use std::sync::Arc;
 
     use klomang_node::mempool::{
-        UtxoOwnershipManager, UtxoTracker, TransactionPool, PoolConfig, OutPoint,
+        OutPoint, PoolConfig, TransactionPool, UtxoOwnershipManager, UtxoTracker,
     };
     use klomang_node::storage::kv_store::KvStore;
 
@@ -94,7 +94,9 @@ mod conflict_management_tests {
         let tx1 = create_test_tx(1, vec![20]);
         let tx2 = create_test_tx(2, vec![20]); // Same input
 
-        assert!(manager.add_transaction_with_ownership(tx1, 1000, 250).is_ok());
+        assert!(manager
+            .add_transaction_with_ownership(tx1, 1000, 250)
+            .is_ok());
 
         // Second transaction should detect conflict
         let result = manager.add_transaction_with_ownership(tx2, 500, 250);
@@ -128,7 +130,9 @@ mod conflict_management_tests {
         let tx2 = create_test_tx(2, vec![40]); // Same input
 
         // Add first transaction with low fee
-        assert!(manager.add_transaction_with_ownership(tx1.clone(), 500, 250).is_ok());
+        assert!(manager
+            .add_transaction_with_ownership(tx1.clone(), 500, 250)
+            .is_ok());
 
         // Add second transaction with higher fee (should trigger RBF)
         let result = manager.add_transaction_with_ownership(tx2, 2000, 250);
@@ -148,7 +152,9 @@ mod conflict_management_tests {
         let tx2 = create_test_tx(2, vec![50]);
 
         // Add first transaction with high fee
-        assert!(manager.add_transaction_with_ownership(tx1, 2000, 250).is_ok());
+        assert!(manager
+            .add_transaction_with_ownership(tx1, 2000, 250)
+            .is_ok());
 
         // Add second transaction with lower fee (should be rejected)
         let result = manager.add_transaction_with_ownership(tx2, 500, 250);
@@ -165,7 +171,9 @@ mod conflict_management_tests {
         let tx_hash = bincode::serialize(&tx.id).unwrap();
 
         // Add transaction
-        assert!(manager.add_transaction_with_ownership(tx, 1000, 250).is_ok());
+        assert!(manager
+            .add_transaction_with_ownership(tx, 1000, 250)
+            .is_ok());
         assert!(manager.tracker().active_claims_count() > 0);
 
         // Remove transaction
@@ -350,8 +358,17 @@ mod conflict_management_tests {
         let tx_old = create_test_tx(10, vec![160]);
         let tx_new = create_test_tx(11, vec![160]);
 
-        manager.add_transaction_with_ownership(tx_old, 500, 250).ok();
-        manager.add_transaction_with_ownership(tx_new, 1000, 250).ok();
+        let result_old = manager.add_transaction_with_ownership(tx_old.clone(), 500, 250);
+        assert!(result_old.is_ok(), "old err: {:?}", result_old);
+        let old_outpoint = OutPoint::new(
+            bincode::serialize(&tx_old.inputs[0].prev_tx).unwrap(),
+            tx_old.inputs[0].index,
+        );
+        assert!(manager.tracker().is_claimed(&old_outpoint));
+
+        let result_new = manager.add_transaction_with_ownership(tx_new.clone(), 1000, 250);
+        assert!(result_new.is_ok(), "new err: {:?}", result_new);
+        assert!(manager.tracker().is_claimed(&old_outpoint));
 
         let stats_after = manager.get_conflict_stats();
         assert!(stats_after.rbf_replacements > stats.rbf_replacements);

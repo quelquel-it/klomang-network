@@ -35,21 +35,28 @@ impl WriteBatch {
     }
 
     pub fn put_cf(&mut self, cf: &str, key: &[u8], value: &[u8]) {
-        self.ops.push(WriteOp::PutCf(cf.to_string(), key.to_vec(), value.to_vec()));
+        self.ops
+            .push(WriteOp::PutCf(cf.to_string(), key.to_vec(), value.to_vec()));
     }
 
     pub fn delete_cf(&mut self, cf: &str, key: &[u8]) {
-        self.ops.push(WriteOp::DeleteCf(cf.to_string(), key.to_vec()));
+        self.ops
+            .push(WriteOp::DeleteCf(cf.to_string(), key.to_vec()));
     }
 
     /// Strongly-typed put operation for named column families
     pub fn put_cf_typed(&mut self, cf: ColumnFamilyName, key: &[u8], value: &[u8]) {
-        self.ops.push(WriteOp::PutCf(cf.as_str().to_string(), key.to_vec(), value.to_vec()));
+        self.ops.push(WriteOp::PutCf(
+            cf.as_str().to_string(),
+            key.to_vec(),
+            value.to_vec(),
+        ));
     }
 
     /// Strongly-typed delete operation for named column families
     pub fn delete_cf_typed(&mut self, cf: ColumnFamilyName, key: &[u8]) {
-        self.ops.push(WriteOp::DeleteCf(cf.as_str().to_string(), key.to_vec()));
+        self.ops
+            .push(WriteOp::DeleteCf(cf.as_str().to_string(), key.to_vec()));
     }
 
     /// Convert deferred operations to a RocksDB WriteBatch

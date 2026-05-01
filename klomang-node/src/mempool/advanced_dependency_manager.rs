@@ -15,8 +15,8 @@ use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
-use crate::storage::kv_store::KvStore;
 use crate::storage::error::StorageResult;
+use crate::storage::kv_store::KvStore;
 
 /// Type alias for transaction hash
 pub type TxHash = Vec<u8>;
@@ -111,8 +111,9 @@ impl TxDependencyManager {
         let mut max_parent_depth = 0u32;
 
         for input in &tx.inputs {
-            let input_tx_bytes = bincode::serialize(&input.prev_tx)
-                .map_err(|e| crate::storage::error::StorageError::SerializationError(e.to_string()))?;
+            let input_tx_bytes = bincode::serialize(&input.prev_tx).map_err(|e| {
+                crate::storage::error::StorageError::SerializationError(e.to_string())
+            })?;
 
             // Check if input exists on-chain (in storage)
             let on_chain = self.kv_store.utxo_exists(&input_tx_bytes, input.index)?;
@@ -140,7 +141,8 @@ impl TxDependencyManager {
 
         // Register the transaction
         self.execution_depth.insert(tx_hash.clone(), tx_depth);
-        self.child_to_parents.insert(tx_hash.clone(), direct_parents.clone());
+        self.child_to_parents
+            .insert(tx_hash.clone(), direct_parents.clone());
 
         // Update parent->children mappings
         for parent in &direct_parents {
@@ -345,10 +347,7 @@ impl TxDependencyManager {
                 for parent in parents.iter() {
                     if all_ancestors.contains(parent) {
                         *in_degree.get_mut(ancestor).unwrap() += 1;
-                        edges
-                            .get_mut(parent)
-                            .unwrap()
-                            .insert(ancestor.clone());
+                        edges.get_mut(parent).unwrap().insert(ancestor.clone());
                     }
                 }
             }
@@ -480,7 +479,7 @@ impl TxDependencyManager {
 mod tests {
     // Note: Real tests would require KvStore mock or integration test setup
     // For now, this serves as structural verification
-    
+
     #[test]
     fn test_dependency_manager_creation() {
         // This verifies the system compiles and can be instantiated

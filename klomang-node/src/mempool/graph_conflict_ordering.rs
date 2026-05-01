@@ -7,9 +7,9 @@
 //! - UTXO conflict management with high-performance detection
 //! - Consensus-safe canonical ordering guarantees
 
+use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 use klomang_core::core::state::transaction::Transaction;
 
@@ -33,17 +33,19 @@ impl DisjointSetUnion {
 
     /// Make set for transaction
     pub(crate) fn make_set(&mut self, tx_hash: Vec<u8>) {
-        self.parent.entry(tx_hash.clone()).or_insert_with(|| tx_hash.clone());
+        self.parent
+            .entry(tx_hash.clone())
+            .or_insert_with(|| tx_hash.clone());
         self.rank.entry(tx_hash).or_insert(0);
     }
 
     /// Find root with path compression
     pub(crate) fn find(&mut self, tx_hash: &[u8]) -> Vec<u8> {
         let tx = tx_hash.to_vec();
-        
+
         // Get parent without holding reference
         let parent_opt = self.parent.get(&tx).cloned();
-        
+
         if let Some(parent) = parent_opt {
             if parent != tx {
                 let root = self.find(&parent);
@@ -51,7 +53,7 @@ impl DisjointSetUnion {
                 return root;
             }
         }
-        
+
         tx
     }
 
@@ -83,10 +85,13 @@ impl DisjointSetUnion {
 
         // Clone keys to avoid borrow conflict
         let keys: Vec<_> = self.parent.keys().cloned().collect();
-        
+
         for tx_hash in keys {
             let root = self.find(&tx_hash);
-            components.entry(root).or_insert_with(Vec::new).push(tx_hash);
+            components
+                .entry(root)
+                .or_insert_with(Vec::new)
+                .push(tx_hash);
         }
 
         components
@@ -123,11 +128,16 @@ impl TransactionNode {
     }
 
     /// Calculate priority score combining fee density and age
-    pub(crate) fn priority_score(&self, current_time_ms: u64, fee_weight: f64, age_weight: f64) -> f64 {
+    pub(crate) fn priority_score(
+        &self,
+        current_time_ms: u64,
+        fee_weight: f64,
+        age_weight: f64,
+    ) -> f64 {
         let fee_density = self.fee_density();
         let age = self.age_score(current_time_ms) as f64;
-        
-        fee_density * fee_weight + (age / 1000.0) * age_weight  // age in seconds
+
+        fee_density * fee_weight + (age / 1000.0) * age_weight // age in seconds
     }
 }
 
@@ -148,23 +158,23 @@ pub struct CanonicalOrderingResult {
 pub struct GraphConflictOrderingEngine {
     // UTXO -> list of claiming transactions
     utxo_index: Arc<RwLock<HashMap<String, Vec<Vec<u8>>>>>,
-    
+
     // Transaction hash -> node information
     nodes: Arc<RwLock<HashMap<Vec<u8>, TransactionNode>>>,
-    
+
     // Transaction hash -> set of conflicting transactions
     conflict_map: Arc<RwLock<HashMap<Vec<u8>, Vec<Vec<u8>>>>>,
-    
+
     // Transaction hash -> dependencies (parents)
     dependency_map: Arc<RwLock<HashMap<Vec<u8>, Vec<Vec<u8>>>>>,
-    
+
     // Cached canonical ordering
     cached_ordering: Arc<RwLock<Option<CanonicalOrderingResult>>>,
-    
+
     // KvStore for UTXO validation
     #[allow(dead_code)]
     kv_store: Option<Arc<KvStore>>,
-    
+
     // Weights for priority calculation
     fee_density_weight: f64,
     age_weight: f64,
@@ -215,19 +225,19 @@ impl GraphConflictOrderingEngine {
         let mut detected_conflicts = Vec::new();
 
         for input in &tx.inputs {
-            let outpoint_key = format!("{:?}:{}", input.prev_tx, 0);  // Simplified: use index 0
+            let outpoint_key = format!("{:?}:{}", input.prev_tx, 0); // Simplified: use index 0
 
             if let Some(claimants) = utxo_index.get(&outpoint_key) {
                 for claimant in claimants {
                     if claimant != &tx_hash {
                         detected_conflicts.push(claimant.clone());
-                        
+
                         // Register bidirectional conflict
                         conflicts
                             .entry(tx_hash.clone())
                             .or_insert_with(Vec::new)
                             .push(claimant.clone());
-                        
+
                         conflicts
                             .entry(claimant.clone())
                             .or_insert_with(Vec::new)
@@ -308,7 +318,10 @@ impl GraphConflictOrderingEngine {
         // Calculate in-degrees for topological sort
         let mut in_degree: HashMap<Vec<u8>, usize> = HashMap::new();
         for tx_hash in nodes.keys() {
-            in_degree.insert(tx_hash.clone(), deps.get(tx_hash).map(|d| d.len()).unwrap_or(0));
+            in_degree.insert(
+                tx_hash.clone(),
+                deps.get(tx_hash).map(|d| d.len()).unwrap_or(0),
+            );
         }
 
         // Get current time for age calculation
@@ -328,13 +341,18 @@ impl GraphConflictOrderingEngine {
         queue.sort_by(|a, b| {
             let node_a = nodes.get(a).unwrap();
             let node_b = nodes.get(b).unwrap();
-            
+
             // Compare by priority score (descending)
-            let score_a = node_a.priority_score(current_time, self.fee_density_weight, self.age_weight);
-            let score_b = node_b.priority_score(current_time, self.fee_density_weight, self.age_weight);
-            
-            match score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal) {
-                std::cmp::Ordering::Equal => b.cmp(a),  // Lexicographic tie-break (lower hash first)
+            let score_a =
+                node_a.priority_score(current_time, self.fee_density_weight, self.age_weight);
+            let score_b =
+                node_b.priority_score(current_time, self.fee_density_weight, self.age_weight);
+
+            match score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => b.cmp(a), // Lexicographic tie-break (lower hash first)
                 ordering => ordering,
             }
         });
@@ -347,7 +365,7 @@ impl GraphConflictOrderingEngine {
         while !queue.is_empty() {
             // Process all nodes at current layer
             current_layer.clear();
-            
+
             while let Some(tx_hash) = queue.pop() {
                 if visited.insert(tx_hash.clone()) {
                     current_layer.push(tx_hash.clone());
@@ -375,18 +393,23 @@ impl GraphConflictOrderingEngine {
             queue.sort_by(|a, b| {
                 let node_a = nodes.get(a).unwrap();
                 let node_b = nodes.get(b).unwrap();
-                
-                let score_a = node_a.priority_score(current_time, self.fee_density_weight, self.age_weight);
-                let score_b = node_b.priority_score(current_time, self.fee_density_weight, self.age_weight);
-                
-                match score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal) {
+
+                let score_a =
+                    node_a.priority_score(current_time, self.fee_density_weight, self.age_weight);
+                let score_b =
+                    node_b.priority_score(current_time, self.fee_density_weight, self.age_weight);
+
+                match score_b
+                    .partial_cmp(&score_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                {
                     std::cmp::Ordering::Equal => b.cmp(a),
                     ordering => ordering,
                 }
             });
         }
 
-        let conflict_count = conflicts.values().map(|v| v.len()).sum::<usize>() / 2;  // Divide by 2 since bidirectional
+        let conflict_count = conflicts.values().map(|v| v.len()).sum::<usize>() / 2; // Divide by 2 since bidirectional
         let layer_count = parallel_groups.len();
 
         let result = CanonicalOrderingResult {
@@ -500,7 +523,8 @@ impl GraphConflictOrderingEngine {
             .read()
             .values()
             .map(|v| v.len())
-            .sum::<usize>() / 2
+            .sum::<usize>()
+            / 2
     }
 
     /// Set priority weight for fee density vs age
@@ -535,7 +559,7 @@ mod tests {
         dsu.make_set(h3.clone());
 
         dsu.union(&h1, &h2);
-        
+
         assert_eq!(dsu.find(&h1), dsu.find(&h2));
         assert_ne!(dsu.find(&h1), dsu.find(&h3));
     }
@@ -544,7 +568,7 @@ mod tests {
     fn test_canonical_ordering_empty() {
         let engine = GraphConflictOrderingEngine::new(None);
         let result = engine.compute_canonical_order().unwrap();
-        
+
         assert_eq!(result.ordered_hashes.len(), 0);
         assert_eq!(result.layer_count, 0);
     }
@@ -562,18 +586,18 @@ mod tests {
             out_degree: 0,
         };
 
-        let current_time = 11000;  // 10000ms later
+        let current_time = 12000; // 11000ms later
         let score = node.priority_score(current_time, 0.7, 0.3);
-        
+
         assert!(score > 0.0);
-        assert!(score > node.fee_density());  // Score should include age component
+        assert!(score > node.fee_density()); // Score should include age component
     }
 
     #[test]
     fn test_parallel_execution_groups() {
         let engine = GraphConflictOrderingEngine::new(None);
-        
+
         let groups = engine.get_parallel_execution_groups().unwrap();
-        assert_eq!(groups.len(), 0);  // Empty engine
+        assert_eq!(groups.len(), 0); // Empty engine
     }
 }

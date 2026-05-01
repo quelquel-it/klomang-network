@@ -1,21 +1,21 @@
 #[cfg(test)]
 mod tests {
+    use bincode;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use bincode;
 
-    use klomang_core::NoOpMetricsCollector;
     use klomang_core::core::crypto::Hash;
-    use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput};
     use klomang_core::core::dag::{BlockHeader, BlockNode};
+    use klomang_core::core::state::transaction::{Transaction, TxInput, TxOutput};
+    use klomang_core::NoOpMetricsCollector;
 
     use crate::storage::batch::WriteBatch;
     use crate::storage::cf::ColumnFamilyName;
-    use crate::storage::db::StorageDb;
     use crate::storage::config::StorageConfig;
+    use crate::storage::db::StorageDb;
     use crate::storage::schema::{
-        BlockValue, TransactionValue, TransactionInput, TransactionOutput,
-        UtxoValue, make_utxo_key, parse_utxo_key,
+        make_utxo_key, parse_utxo_key, BlockValue, TransactionInput, TransactionOutput,
+        TransactionValue, UtxoValue,
     };
 
     // ============================================
@@ -33,8 +33,11 @@ mod tests {
         let db_path = temp_dir.path().join("testdb");
         let wal_path = temp_dir.path().join("testdb_wal");
         let config = StorageConfig::new(&db_path).with_wal_dir(&wal_path);
-        let metrics = Arc::new(crate::storage::metrics::StorageMetrics::new(Box::new(NoOpMetricsCollector)));
-        let db = StorageDb::open_with_config(&config, metrics).expect("Failed to create test database");
+        let metrics = Arc::new(crate::storage::metrics::StorageMetrics::new(Box::new(
+            NoOpMetricsCollector,
+        )));
+        let db =
+            StorageDb::open_with_config(&config, metrics).expect("Failed to create test database");
         (temp_dir, db)
     }
 
@@ -100,11 +103,13 @@ mod tests {
         db.put(ColumnFamilyName::Transactions, &key, &value)
             .expect("Failed to put value");
 
-        let retrieved = db.get(ColumnFamilyName::Transactions, &key)
+        let retrieved = db
+            .get(ColumnFamilyName::Transactions, &key)
             .expect("Failed to get value")
             .expect("Value not found");
 
         assert_eq!(retrieved, value);
+        drop(db);
     }
 
     #[test]
@@ -115,7 +120,8 @@ mod tests {
         let value = b"test_value".to_vec();
 
         // Key should not exist initially
-        assert!(!db.exists(ColumnFamilyName::Transactions, &key)
+        assert!(!db
+            .exists(ColumnFamilyName::Transactions, &key)
             .expect("Failed to check existence"));
 
         // Put value
@@ -123,8 +129,10 @@ mod tests {
             .expect("Failed to put value");
 
         // Key should exist now
-        assert!(db.exists(ColumnFamilyName::Transactions, &key)
+        assert!(db
+            .exists(ColumnFamilyName::Transactions, &key)
             .expect("Failed to check existence"));
+        drop(db);
     }
 
     #[test]
@@ -139,7 +147,8 @@ mod tests {
             .expect("Failed to put value");
 
         // Verify it exists
-        assert!(db.get(ColumnFamilyName::Transactions, &key)
+        assert!(db
+            .get(ColumnFamilyName::Transactions, &key)
             .expect("Failed to get value")
             .is_some());
 
@@ -148,9 +157,11 @@ mod tests {
             .expect("Failed to delete value");
 
         // Verify it's gone
-        assert!(db.get(ColumnFamilyName::Transactions, &key)
+        assert!(db
+            .get(ColumnFamilyName::Transactions, &key)
             .expect("Failed to get value")
             .is_none());
+        drop(db);
     }
 
     // ============================================
@@ -186,6 +197,7 @@ mod tests {
                 .expect("Failed to get key2"),
             Some(value2)
         );
+        drop(db);
     }
 
     // ============================================
@@ -205,29 +217,38 @@ mod tests {
         let block_value = BlockValue {
             hash: block_hash_bytes.clone(),
             header_bytes: bincode::serialize(&block.header).expect("Failed to serialize header"),
-            transactions: block.transactions.iter()
+            transactions: block
+                .transactions
+                .iter()
                 .map(|tx| bincode::serialize(tx).expect("Failed to serialize transaction"))
                 .collect(),
             timestamp: block.header.timestamp,
         };
 
         // Serialize and store
-        let serialized = block_value.to_bytes().expect("Failed to serialize BlockValue");
+        let serialized = block_value
+            .to_bytes()
+            .expect("Failed to serialize BlockValue");
         db.put(ColumnFamilyName::Blocks, &block_hash_bytes, &serialized)
             .expect("Failed to store block");
 
         // Retrieve and deserialize
-        let retrieved_bytes = db.get(ColumnFamilyName::Blocks, &block_hash_bytes)
+        let retrieved_bytes = db
+            .get(ColumnFamilyName::Blocks, &block_hash_bytes)
             .expect("Failed to get block")
             .expect("Block not found");
 
-        let retrieved_block = BlockValue::from_bytes(&retrieved_bytes)
-            .expect("Failed to deserialize BlockValue");
+        let retrieved_block =
+            BlockValue::from_bytes(&retrieved_bytes).expect("Failed to deserialize BlockValue");
 
         // Verify integrity
         assert_eq!(retrieved_block.hash, block_value.hash);
         assert_eq!(retrieved_block.timestamp, block_value.timestamp);
-        assert_eq!(retrieved_block.transactions.len(), block_value.transactions.len());
+        assert_eq!(
+            retrieved_block.transactions.len(),
+            block_value.transactions.len()
+        );
+        drop(db);
     }
 
     #[test]
@@ -242,13 +263,17 @@ mod tests {
         // Convert to storage format
         let tx_value = TransactionValue {
             tx_hash: tx_hash_bytes.clone(),
-            inputs: tx.inputs.iter()
+            inputs: tx
+                .inputs
+                .iter()
                 .map(|input| TransactionInput {
                     previous_tx_hash: hash_to_bytes(&input.prev_tx),
                     output_index: input.index,
                 })
                 .collect(),
-            outputs: tx.outputs.iter()
+            outputs: tx
+                .outputs
+                .iter()
                 .map(|output| TransactionOutput {
                     amount: output.value,
                     pubkey_hash: hash_to_bytes(&output.pubkey_hash),
@@ -258,12 +283,15 @@ mod tests {
         };
 
         // Serialize and store
-        let serialized = tx_value.to_bytes().expect("Failed to serialize TransactionValue");
+        let serialized = tx_value
+            .to_bytes()
+            .expect("Failed to serialize TransactionValue");
         db.put(ColumnFamilyName::Transactions, &tx_hash_bytes, &serialized)
             .expect("Failed to store transaction");
 
         // Retrieve and deserialize
-        let retrieved_bytes = db.get(ColumnFamilyName::Transactions, &tx_hash_bytes)
+        let retrieved_bytes = db
+            .get(ColumnFamilyName::Transactions, &tx_hash_bytes)
             .expect("Failed to get transaction")
             .expect("Transaction not found");
 
@@ -275,6 +303,7 @@ mod tests {
         assert_eq!(retrieved_tx.inputs.len(), tx_value.inputs.len());
         assert_eq!(retrieved_tx.outputs.len(), tx_value.outputs.len());
         assert_eq!(retrieved_tx.fee, tx_value.fee);
+        drop(db);
     }
 
     #[test]
@@ -291,22 +320,26 @@ mod tests {
         let utxo_value = UtxoValue::new(500, pubkey_hash_bytes.clone(), vec![], 1000);
 
         // Serialize and store
-        let serialized = utxo_value.to_bytes().expect("Failed to serialize UtxoValue");
+        let serialized = utxo_value
+            .to_bytes()
+            .expect("Failed to serialize UtxoValue");
         db.put(ColumnFamilyName::Utxo, &utxo_key, &serialized)
             .expect("Failed to store UTXO");
 
         // Retrieve and deserialize
-        let retrieved_bytes = db.get(ColumnFamilyName::Utxo, &utxo_key)
+        let retrieved_bytes = db
+            .get(ColumnFamilyName::Utxo, &utxo_key)
             .expect("Failed to get UTXO")
             .expect("UTXO not found");
 
-        let retrieved_utxo = UtxoValue::from_bytes(&retrieved_bytes)
-            .expect("Failed to deserialize UtxoValue");
+        let retrieved_utxo =
+            UtxoValue::from_bytes(&retrieved_bytes).expect("Failed to deserialize UtxoValue");
 
         // Verify integrity
         assert_eq!(retrieved_utxo.amount, utxo_value.amount);
         assert_eq!(retrieved_utxo.pubkey_hash, utxo_value.pubkey_hash);
         assert_eq!(retrieved_utxo.block_height, utxo_value.block_height);
+        drop(db);
     }
 
     // ============================================
@@ -325,8 +358,7 @@ mod tests {
         assert_eq!(key.len(), 36);
 
         // Parse key back
-        let (parsed_hash, parsed_index) = parse_utxo_key(&key)
-            .expect("Failed to parse UTXO key");
+        let (parsed_hash, parsed_index) = parse_utxo_key(&key).expect("Failed to parse UTXO key");
 
         assert_eq!(parsed_hash, tx_hash);
         assert_eq!(parsed_index, output_index);
@@ -351,11 +383,13 @@ mod tests {
             .expect("Failed to put in Transactions CF");
 
         // Retrieve from different CFs
-        let retrieved_blocks = db.get(ColumnFamilyName::Blocks, &key)
+        let retrieved_blocks = db
+            .get(ColumnFamilyName::Blocks, &key)
             .expect("Failed to get from Blocks CF")
             .expect("Value not found in Blocks CF");
 
-        let retrieved_txs = db.get(ColumnFamilyName::Transactions, &key)
+        let retrieved_txs = db
+            .get(ColumnFamilyName::Transactions, &key)
             .expect("Failed to get from Transactions CF")
             .expect("Value not found in Transactions CF");
 
@@ -363,6 +397,7 @@ mod tests {
         assert_eq!(retrieved_blocks, value_blocks);
         assert_eq!(retrieved_txs, value_txs);
         assert_ne!(retrieved_blocks, retrieved_txs);
+        drop(db);
     }
 
     // ============================================
@@ -385,10 +420,12 @@ mod tests {
             .expect("Failed to put key2");
 
         // Verify data exists
-        assert!(db.get(ColumnFamilyName::Transactions, &key1)
+        assert!(db
+            .get(ColumnFamilyName::Transactions, &key1)
             .expect("Failed to get key1")
             .is_some());
-        assert!(db.get(ColumnFamilyName::Blocks, &key2)
+        assert!(db
+            .get(ColumnFamilyName::Blocks, &key2)
             .expect("Failed to get key2")
             .is_some());
 
@@ -396,12 +433,15 @@ mod tests {
         db.clear_and_reset().expect("Failed to clear and reset");
 
         // Verify all data is gone
-        assert!(db.get(ColumnFamilyName::Transactions, &key1)
+        assert!(db
+            .get(ColumnFamilyName::Transactions, &key1)
             .expect("Failed to get key1 after reset")
             .is_none());
-        assert!(db.get(ColumnFamilyName::Blocks, &key2)
+        assert!(db
+            .get(ColumnFamilyName::Blocks, &key2)
             .expect("Failed to get key2 after reset")
             .is_none());
+        drop(db);
     }
 
     // ============================================
@@ -437,6 +477,8 @@ mod tests {
         // Snapshot should see original value (point-in-time consistency)
         // Note: test depends on snapshot API availability
         println!("Snapshot created and database was updated");
+        drop(_snapshot);
+        drop(db);
     }
 
     // ============================================
@@ -458,11 +500,16 @@ mod tests {
         let _value = b"test_value".to_vec();
 
         // Use Arc in a thread-like scenario
-        db_arc1.get_cf(
-            &db_arc1.cf_handle("default").expect("Failed to get CF handle"),
-            &key
-        ).expect("Failed to get from arc");
+        db_arc1
+            .get_cf(
+                &db_arc1
+                    .cf_handle("default")
+                    .expect("Failed to get CF handle"),
+                &key,
+            )
+            .expect("Failed to get from arc");
 
         println!("Arc cloning works correctly");
+        drop(db);
     }
 }

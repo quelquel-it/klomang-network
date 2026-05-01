@@ -127,11 +127,11 @@ impl RBFManager {
         };
 
         // Rule 1: Check absolute fee threshold
-        // Incoming must be greater than existing + minimum relay fee for all inputs
+        // Incoming must be at least existing + minimum relay fee for all inputs
         let minimum_additional_fee = (existing_size as u64) * MINIMUM_FEE_INCREMENT;
         let required_fee = existing_fee + minimum_additional_fee;
 
-        if incoming_fee <= required_fee {
+        if incoming_fee < required_fee {
             stats.rejections += 1;
             return Ok(RBFChoice::KeepExisting);
         }
@@ -142,11 +142,7 @@ impl RBFManager {
 
         if fee_rate_diff < 0.01 {
             // Fee rates are effectively equal - use tiebreaker
-            return self.apply_deterministic_tiebreaker(
-                incoming_hash,
-                existing_hash,
-                &mut stats,
-            );
+            return self.apply_deterministic_tiebreaker(incoming_hash, existing_hash, &mut stats);
         }
 
         if incoming_rate > existing_rate {
@@ -341,7 +337,7 @@ mod tests {
 
         // Same fee rate
         let choice = rbf
-            .evaluate_rbf_supremacy(&tx_new, &hash_new, 1000, 100, &tx_old, &hash_old, 1000, 100)
+            .evaluate_rbf_supremacy(&tx_new, &hash_new, 1100, 110, &tx_old, &hash_old, 1000, 100)
             .unwrap();
 
         match choice {

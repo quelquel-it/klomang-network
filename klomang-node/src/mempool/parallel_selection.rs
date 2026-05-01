@@ -5,11 +5,11 @@
 //! - FeeBalancer for adaptive fee pressure management
 //! - Integration with TransactionPool for optimized throughput
 
-use std::sync::Arc;
-use parking_lot::RwLock;
-use klomang_core::core::state::transaction::Transaction;
-use crate::storage::KvStore;
 use crate::mempool::graph_conflict_ordering_integration::ConflictOrderingIntegration;
+use crate::storage::KvStore;
+use klomang_core::core::state::transaction::Transaction;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Parallel-Ready Selection Set Builder
 ///
@@ -24,8 +24,14 @@ pub struct ParallelSelectionBuilder {
 
 impl ParallelSelectionBuilder {
     /// Create new parallel selection builder
-    pub fn new(_kv_store: Option<Arc<KvStore>>, conflict_ordering: Arc<ConflictOrderingIntegration>) -> Self {
-        Self { _kv_store, conflict_ordering }
+    pub fn new(
+        _kv_store: Option<Arc<KvStore>>,
+        conflict_ordering: Arc<ConflictOrderingIntegration>,
+    ) -> Self {
+        Self {
+            _kv_store,
+            conflict_ordering,
+        }
     }
 
     /// Build parallel transaction sets from mempool
@@ -45,7 +51,9 @@ impl ParallelSelectionBuilder {
         }
 
         // Get parallel groups from conflict ordering integration
-        let parallel_groups = self.conflict_ordering.get_parallel_validation_groups()
+        let parallel_groups = self
+            .conflict_ordering
+            .get_parallel_validation_groups()
             .map_err(|e| format!("Failed to get parallel groups: {}", e))?;
 
         if parallel_groups.is_empty() {
@@ -56,8 +64,8 @@ impl ParallelSelectionBuilder {
         // Create hash to transaction mapping
         let mut tx_map = std::collections::HashMap::new();
         for tx in transactions {
-            let tx_hash = bincode::serialize(&tx.id)
-                .map_err(|e| format!("Serialization error: {}", e))?;
+            let tx_hash =
+                bincode::serialize(&tx.id).map_err(|e| format!("Serialization error: {}", e))?;
             tx_map.insert(tx_hash, Arc::clone(tx));
         }
 

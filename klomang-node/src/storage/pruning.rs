@@ -1,7 +1,7 @@
+use crate::storage::cf::ColumnFamilyName;
 use crate::storage::db::StorageDb;
 use crate::storage::schema::HeaderValue;
 use rocksdb::IteratorMode;
-use crate::storage::cf::ColumnFamilyName;
 
 /// Pruning manager for tracking and triggering maintenance operations
 #[derive(Debug)]
@@ -39,22 +39,32 @@ impl PruningManager {
     ///
     /// # Returns
     /// Number of blocks pruned
-    pub fn prune_blocks(&mut self, db: &StorageDb, current_height: u64, depth: u64, finality_threshold: u64) -> Result<usize, String> {
-        let cutoff_height = current_height.saturating_sub(depth).saturating_sub(finality_threshold);
+    pub fn prune_blocks(
+        &mut self,
+        db: &StorageDb,
+        current_height: u64,
+        depth: u64,
+        finality_threshold: u64,
+    ) -> Result<usize, String> {
+        let cutoff_height = current_height
+            .saturating_sub(depth)
+            .saturating_sub(finality_threshold);
         let mut pruned = 0;
         let mut batch = crate::storage::batch::WriteBatch::new();
 
         // Iterate through all headers to find blocks to prune
-        let cf_handle = db.inner().cf_handle(ColumnFamilyName::Headers.as_str())
+        let cf_handle = db
+            .inner()
+            .cf_handle(ColumnFamilyName::Headers.as_str())
             .ok_or_else(|| "Headers CF not found".to_string())?;
-        
+
         let iter = db.inner().iterator_cf(&cf_handle, IteratorMode::Start);
 
         for item in iter {
             let (key, value) = item.map_err(|e| format!("Iterator error: {}", e))?;
             let header: HeaderValue = bincode::deserialize(&value)
                 .map_err(|e| format!("Deserialization failed: {}", e))?;
-            
+
             if header.height < cutoff_height {
                 // Remove block data but keep header
                 batch.delete(&key);

@@ -11,13 +11,13 @@
 //! - Cross-shard reads can happen concurrently
 //! - Independent UTXO validation per shard
 
-use std::sync::Arc;
-use parking_lot::RwLock;
-use indexmap::IndexMap;
-use klomang_core::core::state::transaction::Transaction;
-use crate::storage::KvStore;
 use super::conflict::OutPoint;
 use super::parallel_partitioning::ConflictFreePartitioner;
+use crate::storage::KvStore;
+use indexmap::IndexMap;
+use klomang_core::core::state::transaction::Transaction;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Entry in a sub-pool with status tracking
 #[derive(Clone, Debug)]
@@ -172,7 +172,6 @@ impl SubPool {
 
         Ok(())
     }
-
 }
 
 impl Clone for SubPool {
@@ -217,7 +216,9 @@ impl ParallelMempool {
 
         Self {
             sub_pools,
-            partitioner: Arc::new(super::parallel_partitioning::ConflictFreePartitioner::with_config(config)),
+            partitioner: Arc::new(
+                super::parallel_partitioning::ConflictFreePartitioner::with_config(config),
+            ),
             kv_store: None,
             num_shards,
         }
@@ -231,7 +232,10 @@ impl ParallelMempool {
     }
 
     /// Add batch of transactions with automatic partitioning
-    pub fn add_transactions_batch(&self, transactions: Vec<Transaction>) -> Result<ParallelAddResult, String> {
+    pub fn add_transactions_batch(
+        &self,
+        transactions: Vec<Transaction>,
+    ) -> Result<ParallelAddResult, String> {
         let result = self.partitioner.partition(transactions)?;
 
         // Verify partition safety
@@ -299,7 +303,10 @@ impl ParallelMempool {
     }
 
     /// Get shard for transaction (without modifying)
-    pub fn get_shard_for_tx(&self, tx_hash: &[u8]) -> Option<Arc<RwLock<IndexMap<Vec<u8>, SubPoolEntry>>>> {
+    pub fn get_shard_for_tx(
+        &self,
+        tx_hash: &[u8],
+    ) -> Option<Arc<RwLock<IndexMap<Vec<u8>, SubPoolEntry>>>> {
         for shard in &self.sub_pools {
             if shard.contains(tx_hash) {
                 return Some(Arc::clone(&shard.entries));
@@ -488,6 +495,7 @@ mod tests {
         for i in 0..4 {
             let mut tx = create_test_tx();
             tx.id = Hash::new(&[i as u8; 32]);
+            tx.inputs[0].prev_tx = Hash::new(&[i as u8; 32]); // Make inputs unique
             txs.push(tx);
         }
 

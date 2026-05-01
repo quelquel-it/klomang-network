@@ -9,13 +9,11 @@ use crate::storage::cache::StorageCacheLayer;
 use crate::storage::cf::ColumnFamilyName;
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
-use crate::storage::schema::{
-    make_utxo_key, UtxoValue, DagNodeValue, DagTipsValue, BlockValue,
-};
-use rocksdb::{IteratorMode, Direction};
+use crate::storage::schema::{make_utxo_key, BlockValue, DagNodeValue, DagTipsValue, UtxoValue};
+use rocksdb::{Direction, IteratorMode};
+use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::cmp;
 
 /// Maximum number of results allowed in a single scan operation
 /// Prevents memory exhaustion from unbounded scans
@@ -73,14 +71,17 @@ impl ReadPath {
     /// # Returns
     /// Vec of (OutPoint, Result<Option<UtxoValue>>)
     /// Each result is independent - a failure doesn't affect others
-    pub fn get_multiple_utxos(&self, outpoints: &[OutPoint]) -> StorageResult<Vec<(OutPoint, StorageResult<Option<UtxoValue>>)>> {
+    pub fn get_multiple_utxos(
+        &self,
+        outpoints: &[OutPoint],
+    ) -> StorageResult<Vec<(OutPoint, StorageResult<Option<UtxoValue>>)>> {
         let mut results = Vec::with_capacity(outpoints.len());
-        
+
         for outpoint in outpoints {
             let result = self.get_utxo(outpoint);
             results.push((outpoint.clone(), result));
         }
-        
+
         Ok(results)
     }
 
@@ -117,7 +118,8 @@ impl ReadPath {
         end_key: &[u8],
         max_results: usize,
     ) -> StorageResult<Vec<(Vec<u8>, UtxoValue)>> {
-        self.cache_layer.scan_utxo_range(start_key, end_key, max_results)
+        self.cache_layer
+            .scan_utxo_range(start_key, end_key, max_results)
     }
 
     /// Get all current DAG tips efficiently
@@ -149,7 +151,8 @@ impl ReadPath {
         results.reserve(cmp::min(safe_limit, DEFAULT_BATCH_SIZE));
 
         let cf_handle = self
-            .cache_layer.db()
+            .cache_layer
+            .db()
             .inner()
             .cf_handle(ColumnFamilyName::Dag.as_str())
             .ok_or_else(|| StorageError::InvalidColumnFamily("dag".to_string()))?;
@@ -170,7 +173,7 @@ impl ReadPath {
                     continue;
                 }
             };
-            
+
             match DagNodeValue::from_bytes(&value) {
                 Ok(node) => results.push((key, node)),
                 Err(e) => {
@@ -187,7 +190,7 @@ impl ReadPath {
     /// Get blocks by range scan with safety bounds
     ///
     /// Scans block column family for blocks in range.
-    /// 
+    ///
     /// # Arguments
     /// * `start_hash` - Optional starting point for scan
     /// * `limit` - Maximum number of blocks to return (will be capped at MAX_ALLOWED_RESULTS)
@@ -205,7 +208,8 @@ impl ReadPath {
         results.reserve(cmp::min(safe_limit, DEFAULT_BATCH_SIZE));
 
         let cf_handle = self
-            .cache_layer.db()
+            .cache_layer
+            .db()
             .inner()
             .cf_handle(ColumnFamilyName::Blocks.as_str())
             .ok_or_else(|| StorageError::InvalidColumnFamily("blocks".to_string()))?;
@@ -226,7 +230,7 @@ impl ReadPath {
                     continue;
                 }
             };
-            
+
             match BlockValue::from_bytes(&value) {
                 Ok(block) => results.push((key, block)),
                 Err(e) => {
@@ -244,11 +248,15 @@ impl ReadPath {
     ///
     /// More efficient than calling utxo_exists in a loop
     /// Uses Bloom filters to quickly determine non-existent keys
-    pub fn check_utxos_exist(&self, outpoints: &[OutPoint]) -> StorageResult<HashMap<OutPoint, bool>> {
+    pub fn check_utxos_exist(
+        &self,
+        outpoints: &[OutPoint],
+    ) -> StorageResult<HashMap<OutPoint, bool>> {
         let mut map = HashMap::new();
 
         let _cf_handle = self
-            .cache_layer.db()
+            .cache_layer
+            .db()
             .inner()
             .cf_handle(ColumnFamilyName::Utxo.as_str())
             .ok_or_else(|| StorageError::InvalidColumnFamily("utxo".to_string()))?;
@@ -281,7 +289,7 @@ mod tests {
         let tx_hash = vec![0u8; 32];
         let index = 42;
         let outpoint = OutPoint::new(tx_hash.clone(), index);
-        
+
         let key = outpoint.to_utxo_key();
         assert_eq!(key.len(), 36);
         assert_eq!(&key[0..32], tx_hash.as_slice());
@@ -291,7 +299,7 @@ mod tests {
     fn test_outpoint_clone() {
         let outpoint1 = OutPoint::new(vec![1u8; 32], 10);
         let outpoint2 = outpoint1.clone();
-        
+
         assert_eq!(outpoint1, outpoint2);
     }
 }

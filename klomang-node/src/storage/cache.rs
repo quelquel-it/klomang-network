@@ -11,15 +11,15 @@ use crate::storage::concurrency::{StorageWriteCommand, StorageWriter};
 use crate::storage::db::StorageDb;
 use crate::storage::error::{StorageError, StorageResult};
 use crate::storage::schema::{
-    BlockValue, DagNodeValue, DagTipsValue, HeaderValue, TransactionValue, UtxoSpentValue,
-    make_utxo_key, parse_utxo_key, VerkleStateValue, UtxoValue,
+    make_utxo_key, parse_utxo_key, BlockValue, DagNodeValue, DagTipsValue, HeaderValue,
+    TransactionValue, UtxoSpentValue, UtxoValue, VerkleStateValue,
 };
 
 const RECENT_BLOCK_CACHE_CAPACITY: usize = 10_000;
 const UTXO_HOT_CACHE_CAPACITY: usize = 20_000;
 
 /// Thread-safe UTXO cache with LRU eviction policy
-/// 
+///
 /// Uses single RwLock to prevent race conditions between cache operations
 /// and LRU tracking. This ensures consistency: if key is in cache, it's in LRU.
 #[derive(Clone, Debug)]
@@ -30,14 +30,14 @@ pub struct UtxoHotCache {
 impl UtxoHotCache {
     pub fn new(capacity: usize) -> Self {
         Self {
-            cache: Arc::new(RwLock::new(
-                LruCache::new(NonZeroUsize::new(capacity).unwrap())
-            )),
+            cache: Arc::new(RwLock::new(LruCache::new(
+                NonZeroUsize::new(capacity).unwrap(),
+            ))),
         }
     }
 
     /// Insert or update a UTXO in the cache
-    /// 
+    ///
     /// If cache is at capacity, the least recently used item is evicted.
     pub fn insert(&self, key: Vec<u8>, value: UtxoValue) {
         let value_arc = Arc::new(value);
@@ -47,7 +47,7 @@ impl UtxoHotCache {
     }
 
     /// Get a UTXO from cache if it exists
-    /// 
+    ///
     /// Returns None if key is not in cache. Updates LRU tracking on hit.
     pub fn get(&self, key: &[u8]) -> Option<Arc<UtxoValue>> {
         let mut cache = self.cache.write();
@@ -84,7 +84,9 @@ pub struct RecentBlockCache {
 impl RecentBlockCache {
     pub fn new(capacity: usize) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(capacity).unwrap()))),
+            inner: Arc::new(RwLock::new(LruCache::new(
+                NonZeroUsize::new(capacity).unwrap(),
+            ))),
         }
     }
 
@@ -186,7 +188,12 @@ impl StorageCacheLayer {
         }
     }
 
-    pub fn put_utxo(&self, tx_hash: &[u8], output_index: u32, utxo: &UtxoValue) -> StorageResult<()> {
+    pub fn put_utxo(
+        &self,
+        tx_hash: &[u8],
+        output_index: u32,
+        utxo: &UtxoValue,
+    ) -> StorageResult<()> {
         let key = make_utxo_key(tx_hash, output_index);
         let value = utxo.to_bytes()?;
         self.enqueue_write(StorageWriteCommand::Put {
@@ -226,7 +233,8 @@ impl StorageCacheLayer {
         match self.db.get(ColumnFamilyName::Blocks, block_hash)? {
             Some(raw) => {
                 let block = BlockValue::from_bytes(&raw)?;
-                self.recent_block_cache.insert(block_hash.to_vec(), block.clone());
+                self.recent_block_cache
+                    .insert(block_hash.to_vec(), block.clone());
                 Ok(Some(block))
             }
             None => Ok(None),
@@ -240,7 +248,8 @@ impl StorageCacheLayer {
             key: block_hash.to_vec(),
             value,
         })?;
-        self.recent_block_cache.insert(block_hash.to_vec(), block.clone());
+        self.recent_block_cache
+            .insert(block_hash.to_vec(), block.clone());
         Ok(())
     }
 
@@ -260,7 +269,11 @@ impl StorageCacheLayer {
         }
     }
 
-    pub fn put_transaction(&self, tx_hash: &[u8], transaction: &TransactionValue) -> StorageResult<()> {
+    pub fn put_transaction(
+        &self,
+        tx_hash: &[u8],
+        transaction: &TransactionValue,
+    ) -> StorageResult<()> {
         let value = transaction.to_bytes()?;
         self.enqueue_write(StorageWriteCommand::Put {
             cf: ColumnFamilyName::Transactions,
@@ -299,7 +312,12 @@ impl StorageCacheLayer {
         }
     }
 
-    pub fn put_utxo_spent(&self, tx_hash: &[u8], output_index: u32, spent: &UtxoSpentValue) -> StorageResult<()> {
+    pub fn put_utxo_spent(
+        &self,
+        tx_hash: &[u8],
+        output_index: u32,
+        spent: &UtxoSpentValue,
+    ) -> StorageResult<()> {
         let key = make_utxo_key(tx_hash, output_index);
         let value = spent.to_bytes()?;
         self.enqueue_write(StorageWriteCommand::Put {
@@ -425,7 +443,10 @@ impl StorageCacheLayer {
 
     pub fn scan_utxos_by_tx_hash(&self, tx_hash: &[u8]) -> StorageResult<Vec<(u32, UtxoValue)>> {
         let start_key = make_utxo_key(tx_hash, 0);
-        let cf_handle = self.db.as_ref().inner()
+        let cf_handle = self
+            .db
+            .as_ref()
+            .inner()
             .cf_handle(ColumnFamilyName::Utxo.as_str())
             .ok_or_else(|| StorageError::DbError("missing utxo column family".to_string()))?;
 
@@ -463,11 +484,17 @@ impl StorageCacheLayer {
         _end_key: &[u8],
         max_results: usize,
     ) -> StorageResult<Vec<(Vec<u8>, UtxoValue)>> {
-        let cf_handle = self.db.as_ref().inner()
+        let cf_handle = self
+            .db
+            .as_ref()
+            .inner()
             .cf_handle(ColumnFamilyName::Utxo.as_str())
             .ok_or_else(|| StorageError::DbError("missing utxo column family".to_string()))?;
 
-        let iter = self.db.as_ref().inner().iterator_cf(&cf_handle, IteratorMode::From(start_key, Direction::Forward));
+        let iter = self.db.as_ref().inner().iterator_cf(
+            &cf_handle,
+            IteratorMode::From(start_key, Direction::Forward),
+        );
 
         let mut results = Vec::new();
         for item in iter {
@@ -485,11 +512,18 @@ impl StorageCacheLayer {
     }
 
     pub fn scan_dag_nodes(&self, limit: usize) -> StorageResult<Vec<DagNodeValue>> {
-        let cf_handle = self.db.as_ref().inner()
+        let cf_handle = self
+            .db
+            .as_ref()
+            .inner()
             .cf_handle(ColumnFamilyName::Dag.as_str())
             .ok_or_else(|| StorageError::DbError("missing dag column family".to_string()))?;
 
-        let iter = self.db.as_ref().inner().iterator_cf(&cf_handle, IteratorMode::Start);
+        let iter = self
+            .db
+            .as_ref()
+            .inner()
+            .iterator_cf(&cf_handle, IteratorMode::Start);
         let mut results = Vec::new();
 
         for item in iter {
@@ -506,11 +540,18 @@ impl StorageCacheLayer {
     }
 
     pub fn scan_blocks(&self, limit: usize) -> StorageResult<Vec<BlockValue>> {
-        let cf_handle = self.db.as_ref().inner()
+        let cf_handle = self
+            .db
+            .as_ref()
+            .inner()
             .cf_handle(ColumnFamilyName::Blocks.as_str())
             .ok_or_else(|| StorageError::DbError("missing blocks column family".to_string()))?;
 
-        let iter = self.db.as_ref().inner().iterator_cf(&cf_handle, IteratorMode::Start);
+        let iter = self
+            .db
+            .as_ref()
+            .inner()
+            .iterator_cf(&cf_handle, IteratorMode::Start);
         let mut results = Vec::new();
 
         for item in iter {
@@ -526,10 +567,7 @@ impl StorageCacheLayer {
 
         Ok(results)
     }
-
 }
-
-
 
 #[cfg(test)]
 mod tests {

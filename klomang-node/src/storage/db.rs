@@ -1,12 +1,15 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use rocksdb::{BlockBasedOptions, Cache, ColumnFamilyDescriptor, DB, DBCompactionStyle, DBCompressionType, Error, Options, Snapshot, WriteOptions, SliceTransform};
+use rocksdb::{
+    BlockBasedOptions, Cache, ColumnFamilyDescriptor, DBCompactionStyle, DBCompressionType, Error,
+    Options, SliceTransform, Snapshot, WriteOptions, DB,
+};
 
 use crate::storage::batch::{WriteBatch, WriteOp};
 use crate::storage::cf::{all_column_families, ColumnFamilyName};
 use crate::storage::config::StorageConfig;
-use crate::storage::metrics::{StorageMetrics, LatencyTimer};
+use crate::storage::metrics::{LatencyTimer, StorageMetrics};
 use klomang_core::NoOpMetricsCollector;
 
 // DB Configuration Constants
@@ -27,7 +30,11 @@ pub const DEFAULT_MAX_BYTES_FOR_LEVEL_BASE: u64 = 256 * 1024 * 1024; // 256 MB
 pub const DEFAULT_LEVEL_COMPACTION_DYNAMIC_LEVEL_BYTES: bool = true;
 
 /// Configure column family options with prefix extractor for optimized reads
-fn configure_cf_options(cf_name: ColumnFamilyName, base_options: &Options, config: &StorageConfig) -> Options {
+fn configure_cf_options(
+    cf_name: ColumnFamilyName,
+    base_options: &Options,
+    config: &StorageConfig,
+) -> Options {
     let mut cf_options = base_options.clone();
 
     // Enable prefix extractor for UTXO and related column families
@@ -80,12 +87,15 @@ fn configure_cf_options(cf_name: ColumnFamilyName, base_options: &Options, confi
 }
 
 /// Creates BlockBasedOptions with CF-specific optimizations
-/// 
+///
 /// Tunes each column family based on its access pattern:
 /// - UTXO: Hot random access -> small blocks, high bloom bits, minimal compression
 /// - UtxoSpent: Cold sequential scan -> large blocks, compression
 /// - Blocks/Headers/Transactions: Cold reference data -> max compression, large blocks
-fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConfig) -> BlockBasedOptions {
+fn create_cf_block_based_options(
+    cf_name: ColumnFamilyName,
+    config: &StorageConfig,
+) -> BlockBasedOptions {
     let mut block_options = BlockBasedOptions::default();
 
     match cf_name {
@@ -97,7 +107,7 @@ fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConf
             block_options.set_bloom_filter(12.0, true); // Higher bloom bits for hot data
             block_options.set_cache_index_and_filter_blocks(true);
             block_options.set_pin_l0_filter_and_index_blocks_in_cache(true);
-        },
+        }
         ColumnFamilyName::UtxoSpent => {
             // ✅ Cold sequential scan: Balance between cache and compression
             let cache = Cache::new_lru_cache(config.hot_data_cache_size / 2);
@@ -105,7 +115,7 @@ fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConf
             block_options.set_block_size(64 * 1024); // 64KB blocks for compression efficiency
             block_options.set_bloom_filter(8.0, true); // Moderate bloom bits
             block_options.set_cache_index_and_filter_blocks(true);
-        },
+        }
         ColumnFamilyName::Blocks => {
             // ✅ Cold reference data: Maximize compression, reference access
             let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
@@ -113,14 +123,14 @@ fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConf
             block_options.set_block_size(64 * 1024); // 64KB blocks
             block_options.set_bloom_filter(10.0, true);
             block_options.set_cache_index_and_filter_blocks(true);
-        },
+        }
         ColumnFamilyName::Headers => {
             // ✅ Very cold reference: Minimal cache, maximum compression
             let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
             block_options.set_block_cache(&cache);
             block_options.set_block_size(64 * 1024);
             block_options.set_bloom_filter(10.0, true);
-        },
+        }
         ColumnFamilyName::Transactions => {
             // ✅ Cold reference data: Balance of compression and random access
             let cache = Cache::new_lru_cache(config.cold_data_cache_size / 3);
@@ -128,7 +138,7 @@ fn create_cf_block_based_options(cf_name: ColumnFamilyName, config: &StorageConf
             block_options.set_block_size(64 * 1024); // 64KB blocks
             block_options.set_bloom_filter(10.0, true);
             block_options.set_cache_index_and_filter_blocks(true);
-        },
+        }
         _ => {
             // Default for other CFs
             let cache = Cache::new_lru_cache(config.block_cache_size);
@@ -171,7 +181,10 @@ impl StorageDb {
         Self::open(path.as_ref(), wal_dir)
     }
 
-    pub fn open_with_config(config: &StorageConfig, metrics: Arc<StorageMetrics>) -> Result<Self, Error> {
+    pub fn open_with_config(
+        config: &StorageConfig,
+        metrics: Arc<StorageMetrics>,
+    ) -> Result<Self, Error> {
         let mut options = Options::default();
         options.create_if_missing(true);
         options.create_missing_column_families(true);
@@ -186,7 +199,8 @@ impl StorageDb {
         options.set_compaction_style(config.compaction_style);
         options.set_target_file_size_base(config.target_file_size_base);
         options.set_max_bytes_for_level_base(config.max_bytes_for_level_base);
-        options.set_level_compaction_dynamic_level_bytes(config.level_compaction_dynamic_level_bytes);
+        options
+            .set_level_compaction_dynamic_level_bytes(config.level_compaction_dynamic_level_bytes);
 
         // Advanced optimizations
         if config.enable_direct_io {
@@ -239,7 +253,7 @@ impl StorageDb {
     pub fn write_batch(&self, batch: WriteBatch) -> Result<(), Error> {
         let metrics = Arc::clone(&self.metrics);
         let _timer = LatencyTimer::new(move |d| metrics.record_write_latency(d));
-        
+
         let mut rb = rocksdb::WriteBatch::default();
         for op in batch.into_inner() {
             match op {
@@ -263,7 +277,7 @@ impl StorageDb {
     pub fn write_batch_no_wal(&self, batch: WriteBatch) -> Result<(), Error> {
         let metrics = Arc::clone(&self.metrics);
         let _timer = LatencyTimer::new(move |d| metrics.record_write_latency(d));
-        
+
         let mut rb = rocksdb::WriteBatch::default();
         for op in batch.into_inner() {
             match op {
@@ -324,7 +338,12 @@ impl StorageDb {
         self.inner.flush()
     }
 
-    pub fn compact_range(&self, cf_name: ColumnFamilyName, start_key: Option<&[u8]>, end_key: Option<&[u8]>) -> Result<(), Error> {
+    pub fn compact_range(
+        &self,
+        cf_name: ColumnFamilyName,
+        start_key: Option<&[u8]>,
+        end_key: Option<&[u8]>,
+    ) -> Result<(), Error> {
         let cf_handle = self
             .inner
             .cf_handle(cf_name.as_str())
@@ -406,14 +425,15 @@ impl StorageDb {
             }
         }
 
-
         Ok(stats)
     }
 
     /// Update cache hit ratio metrics berdasarkan data dari RocksDB statistics.
     pub fn update_cache_metrics(&self) -> Result<(), Error> {
         let stats = self.get_storage_stats()?;
-        if let (Some(hits), Some(misses)) = (stats.get("block_cache_hit"), stats.get("block_cache_miss")) {
+        if let (Some(hits), Some(misses)) =
+            (stats.get("block_cache_hit"), stats.get("block_cache_miss"))
+        {
             let total = hits + misses;
             if total > 0 {
                 let ratio = *hits as f64 / total as f64;
@@ -457,9 +477,17 @@ impl StorageDb {
         for &cf_name in cfs {
             self.delete_range(cf_name, &[], &[0xFF; 255])?;
         }
-        
+
         // Flush to persist deletions
         self.inner.flush()?;
         Ok(())
+    }
+}
+
+impl Drop for StorageDb {
+    fn drop(&mut self) {
+        // Cancel RocksDB background work before the DB instance is dropped.
+        // This prevents background RocksDB threads from outliving the database memory and causing SIGSEGV.
+        let _ = self.inner.cancel_all_background_work(true);
     }
 }

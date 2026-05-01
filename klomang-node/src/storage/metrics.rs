@@ -1,38 +1,42 @@
-use lazy_static::lazy_static;
-use prometheus::{register_histogram, register_gauge, register_counter, Histogram, Gauge, Counter, Encoder, TextEncoder};
-use std::time::{Duration, Instant};
 use klomang_core::MetricsCollector;
+use lazy_static::lazy_static;
+use prometheus::{
+    register_counter, register_gauge, register_histogram, Counter, Encoder, Gauge, Histogram,
+    TextEncoder,
+};
+use std::time::{Duration, Instant};
 
 lazy_static! {
     pub static ref STORAGE_WRITE_LATENCY: Histogram = register_histogram!(
         "klomang_storage_write_latency_seconds",
         "Latency of WriteBatch commits"
-    ).unwrap();
-
+    )
+    .unwrap();
     pub static ref STORAGE_READ_LATENCY: Histogram = register_histogram!(
         "klomang_storage_read_latency_seconds",
         "Average latency of Get and MultiGet operations"
-    ).unwrap();
-
+    )
+    .unwrap();
     pub static ref STORAGE_COMPACTION_TIME: Histogram = register_histogram!(
         "klomang_storage_compaction_time_seconds",
         "Duration of background compaction processes"
-    ).unwrap();
-
+    )
+    .unwrap();
     pub static ref STORAGE_CACHE_HIT_RATIO: Gauge = register_gauge!(
         "klomang_storage_cache_hit_ratio",
         "Cache hit ratio for Block Cache (hits / (hits + misses))"
-    ).unwrap();
-
+    )
+    .unwrap();
     pub static ref STORAGE_BLOCKS_VALIDATED: Counter = register_counter!(
         "klomang_storage_blocks_validated_total",
         "Total number of blocks validated before storage"
-    ).unwrap();
-
+    )
+    .unwrap();
     pub static ref STORAGE_TRANSACTIONS_PROCESSED: Counter = register_counter!(
         "klomang_storage_transactions_processed_total",
         "Total number of transactions processed"
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 /// Struct untuk mengelola metrics storage dengan integrasi Prometheus.
@@ -85,7 +89,8 @@ impl StorageMetrics {
 
     /// Catat waktu pemrosesan transaksi (delegasi ke core).
     pub fn record_transaction_processing_time(&self, duration: Duration) {
-        self.core_collector.record_transaction_processing_time(duration);
+        self.core_collector
+            .record_transaction_processing_time(duration);
     }
 
     /// Ekspor metrics dalam format Prometheus.
