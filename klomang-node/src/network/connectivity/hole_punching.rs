@@ -24,8 +24,8 @@ pub struct HolePunchingManager {
 
 impl HolePunchingManager {
     pub fn new(local_peer_id: PeerId, _config: HolePunchingConfig) -> Self {
-        let dcutr = DcUtRBehaviour::new();
-        let relay_client = RelayClientBehaviour::new(local_peer_id);
+        let dcutr = DcUtRBehaviour::new(local_peer_id.clone());
+        let relay_client = libp2p::relay::client::Behaviour::new(local_peer_id);
 
         Self { dcutr, relay_client }
     }
@@ -34,18 +34,7 @@ impl HolePunchingManager {
         self.dcutr
     }
 
-    pub fn into_relay_behaviour(self) -> RelayClientBehaviour {
+    pub fn into_relay_behaviour(self) -> libp2p::relay::client::Behaviour {
         self.relay_client
-    }
-
-    pub fn handle_event(
-        &mut self,
-        event: RelayClientEvent,
-    ) -> Option<RelayClientEvent> {
-        Some(event)
-    }
-
-    pub fn handle_dcutr_event(&mut self, event: DcUtREvent) -> Option<DcUtREvent> {
-        Some(event)
     }
 }

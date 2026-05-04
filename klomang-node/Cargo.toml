@@ -25,7 +25,8 @@ once_cell = "1.19"
 num_cpus = "1.16"
 rkyv = "0.7"
 tempfile = "3.8"
-libp2p = { version = "0.53", features = ["noise", "tls", "ed25519", "secp256k1", "yamux", "kad", "mdns", "identify", "ping", "tcp", "dns", "tokio", "macros", "rendezvous", "autonat", "dcutr", "relay"] }
+libp2p = { version = "0.53", features = ["noise", "tls", "ed25519", "secp256k1", "yamux", "kad", "mdns", "identify", "ping", "tcp", "dns", "tokio", "macros", "rendezvous", "autonat", "dcutr", "relay", "gossipsub", "floodsub"] }
+libp2p-swarm = "0.44"
 log = "0.4"
 k256 = "0.13"
 zeroize = "1.5"

@@ -1,5 +1,6 @@
 pub mod connectivity;
 pub mod core_network;
+pub mod messaging;
 pub mod peer_discovery;
 
 pub use connectivity::{ConnectivityBehaviour, ConnectivityConfig};
@@ -12,6 +13,7 @@ pub use core_network::{
     SecureChannelError, StreamType, TransportConfig, TransportError,
 };
 
+pub use messaging::{MessagingBehaviour, MessagingConfig};
 pub use peer_discovery::{
     DiscoveryBehaviour, DiscoveryConfig, KademliaConfig, KademliaDiscovery, MdnsConfig,
     MdnsDiscovery, PeerDiscoveryManager,

@@ -252,7 +252,7 @@ mod tests {
         table.add_peer(peer_id, vec![addr.clone()], false).unwrap();
 
         let record = table.get_peer(&peer_id).unwrap();
-        assert_eq!(record.peer_id, peer_id);
+        assert_eq!(record.peer_id().unwrap(), peer_id);
         assert!(record.addresses.contains(&addr));
         assert_eq!(record.connection_count, 1);
     }

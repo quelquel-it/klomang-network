@@ -1,0 +1,106 @@
+2026/05/04-14:49:02.766412 29440 RocksDB version: 8.1.1
+2026/05/04-14:49:02.766498 29440 Compile date 2023-04-06 16:38:52
+2026/05/04-14:49:02.766507 29440 DB SUMMARY
+2026/05/04-14:49:02.766509 29440 DB Session ID:  IYG6HK59Y3K95M7Y8VRU
+2026/05/04-14:49:02.766548 29440 CURRENT file:  CURRENT
+2026/05/04-14:49:02.766551 29440 IDENTITY file:  IDENTITY
+2026/05/04-14:49:02.766559 29440 MANIFEST file:  MANIFEST-000029 size: 730 Bytes
+2026/05/04-14:49:02.766562 29440 SST files in ./gossipsub_message_cache dir, Total Num: 0, files: 
+2026/05/04-14:49:02.766595 29440 Write Ahead Log file in ./gossipsub_message_cache/wal: 000028.log size: 0 ; 000024.log size: 0 ; 000004.log size: 0 ; 
+2026/05/04-14:49:02.766597 29440                         Options.error_if_exists: 0
+2026/05/04-14:49:02.766599 29440                       Options.create_if_missing: 1
+2026/05/04-14:49:02.766600 29440                         Options.paranoid_checks: 1
+2026/05/04-14:49:02.766602 29440             Options.flush_verify_memtable_count: 1
+2026/05/04-14:49:02.766603 29440                               Options.track_and_verify_wals_in_manifest: 0
+2026/05/04-14:49:02.766604 29440        Options.verify_sst_unique_id_in_manifest: 1
+2026/05/04-14:49:02.766605 29440                                     Options.env: 0x5e0965f32ec0
+2026/05/04-14:49:02.766606 29440                                      Options.fs: PosixFileSystem
+2026/05/04-14:49:02.766608 29440                                Options.info_log: 0x5e0966b49120
+2026/05/04-14:49:02.766609 29440                Options.max_file_opening_threads: 16
+2026/05/04-14:49:02.766610 29440                              Options.statistics: (nil)
+2026/05/04-14:49:02.766611 29440                               Options.use_fsync: 0
+2026/05/04-14:49:02.766612 29440                       Options.max_log_file_size: 0
+2026/05/04-14:49:02.766614 29440                  Options.max_manifest_file_size: 1073741824
+2026/05/04-14:49:02.766615 29440                   Options.log_file_time_to_roll: 0
+2026/05/04-14:49:02.766616 29440                       Options.keep_log_file_num: 1000
+2026/05/04-14:49:02.766617 29440                    Options.recycle_log_file_num: 0
+2026/05/04-14:49:02.766618 29440                         Options.allow_fallocate: 1
+2026/05/04-14:49:02.766620 29440                        Options.allow_mmap_reads: 0
+2026/05/04-14:49:02.766621 29440                       Options.allow_mmap_writes: 0
+2026/05/04-14:49:02.766622 29440                        Options.use_direct_reads: 1
+2026/05/04-14:49:02.766623 29440                        Options.use_direct_io_for_flush_and_compaction: 1
+2026/05/04-14:49:02.766624 29440          Options.create_missing_column_families: 1
+2026/05/04-14:49:02.766625 29440                              Options.db_log_dir: 
+2026/05/04-14:49:02.766626 29440                                 Options.wal_dir: ./gossipsub_message_cache/wal
+2026/05/04-14:49:02.766627 29440                Options.table_cache_numshardbits: 6
+2026/05/04-14:49:02.766629 29440                         Options.WAL_ttl_seconds: 86400
+2026/05/04-14:49:02.766630 29440                       Options.WAL_size_limit_MB: 512
+2026/05/04-14:49:02.766631 29440                        Options.max_write_batch_group_size_bytes: 1048576
+2026/05/04-14:49:02.766632 29440             Options.manifest_preallocation_size: 4194304
+2026/05/04-14:49:02.766633 29440                     Options.is_fd_close_on_exec: 1
+2026/05/04-14:49:02.766634 29440                   Options.advise_random_on_open: 1
+2026/05/04-14:49:02.766635 29440                    Options.db_write_buffer_size: 0
+2026/05/04-14:49:02.766636 29440                    Options.write_buffer_manager: 0x5e0966b487b0
+2026/05/04-14:49:02.766637 29440         Options.access_hint_on_compaction_start: 1
+2026/05/04-14:49:02.766638 29440           Options.random_access_max_buffer_size: 1048576
+2026/05/04-14:49:02.766639 29440                      Options.use_adaptive_mutex: 0
+2026/05/04-14:49:02.766640 29440                            Options.rate_limiter: 0x5e0966b23c40
+2026/05/04-14:49:02.766642 29440     Options.sst_file_manager.rate_bytes_per_sec: 0
+2026/05/04-14:49:02.766646 29440                       Options.wal_recovery_mode: 2
+2026/05/04-14:49:02.766647 29440                  Options.enable_thread_tracking: 0
+2026/05/04-14:49:02.766648 29440                  Options.enable_pipelined_write: 1
+2026/05/04-14:49:02.766649 29440                  Options.unordered_write: 0
+2026/05/04-14:49:02.766650 29440         Options.allow_concurrent_memtable_write: 1
+2026/05/04-14:49:02.766651 29440      Options.enable_write_thread_adaptive_yield: 1
+2026/05/04-14:49:02.766652 29440             Options.write_thread_max_yield_usec: 100
+2026/05/04-14:49:02.766653 29440            Options.write_thread_slow_yield_usec: 3
+2026/05/04-14:49:02.766654 29440                               Options.row_cache: None
+2026/05/04-14:49:02.766655 29440                              Options.wal_filter: None
+2026/05/04-14:49:02.766657 29440             Options.avoid_flush_during_recovery: 0
+2026/05/04-14:49:02.766658 29440             Options.allow_ingest_behind: 0
+2026/05/04-14:49:02.766659 29440             Options.two_write_queues: 0
+2026/05/04-14:49:02.766660 29440             Options.manual_wal_flush: 0
+2026/05/04-14:49:02.766661 29440             Options.wal_compression: 0
+2026/05/04-14:49:02.766662 29440             Options.atomic_flush: 0
+2026/05/04-14:49:02.766663 29440             Options.avoid_unnecessary_blocking_io: 0
+2026/05/04-14:49:02.766664 29440                 Options.persist_stats_to_disk: 0
+2026/05/04-14:49:02.766665 29440                 Options.write_dbid_to_manifest: 0
+2026/05/04-14:49:02.766666 29440                 Options.log_readahead_size: 0
+2026/05/04-14:49:02.766668 29440                 Options.file_checksum_gen_factory: Unknown
+2026/05/04-14:49:02.766669 29440                 Options.best_efforts_recovery: 0
+2026/05/04-14:49:02.766670 29440                Options.max_bgerror_resume_count: 2147483647
+2026/05/04-14:49:02.766671 29440            Options.bgerror_resume_retry_interval: 1000000
+2026/05/04-14:49:02.766672 29440             Options.allow_data_in_errors: 0
+2026/05/04-14:49:02.766673 29440             Options.db_host_id: __hostname__
+2026/05/04-14:49:02.766674 29440             Options.enforce_single_del_contracts: true
+2026/05/04-14:49:02.766675 29440             Options.max_background_jobs: 4
+2026/05/04-14:49:02.766676 29440             Options.max_background_compactions: -1
+2026/05/04-14:49:02.766677 29440             Options.max_subcompactions: 1
+2026/05/04-14:49:02.766678 29440             Options.avoid_flush_during_shutdown: 0
+2026/05/04-14:49:02.766680 29440           Options.writable_file_max_buffer_size: 1048576
+2026/05/04-14:49:02.766681 29440             Options.delayed_write_rate : 104857600
+2026/05/04-14:49:02.766682 29440             Options.max_total_wal_size: 0
+2026/05/04-14:49:02.766683 29440             Options.delete_obsolete_files_period_micros: 21600000000
+2026/05/04-14:49:02.766684 29440                   Options.stats_dump_period_sec: 600
+2026/05/04-14:49:02.766685 29440                 Options.stats_persist_period_sec: 600
+2026/05/04-14:49:02.766686 29440                 Options.stats_history_buffer_size: 1048576
+2026/05/04-14:49:02.766687 29440                          Options.max_open_files: -1
+2026/05/04-14:49:02.766688 29440                          Options.bytes_per_sync: 1048576
+2026/05/04-14:49:02.766689 29440                      Options.wal_bytes_per_sync: 0
+2026/05/04-14:49:02.766690 29440                   Options.strict_bytes_per_sync: 0
+2026/05/04-14:49:02.766691 29440       Options.compaction_readahead_size: 2097152
+2026/05/04-14:49:02.766692 29440                  Options.max_background_flushes: -1
+2026/05/04-14:49:02.766694 29440 Compression algorithms supported:
+2026/05/04-14:49:02.766695 29440 	kZSTD supported: 1
+2026/05/04-14:49:02.766696 29440 	kXpressCompression supported: 0
+2026/05/04-14:49:02.766698 29440 	kBZip2Compression supported: 0
+2026/05/04-14:49:02.766699 29440 	kZSTDNotFinalCompression supported: 1
+2026/05/04-14:49:02.766700 29440 	kLZ4Compression supported: 1
+2026/05/04-14:49:02.766701 29440 	kZlibCompression supported: 0
+2026/05/04-14:49:02.766704 29440 	kLZ4HCCompression supported: 1
+2026/05/04-14:49:02.766705 29440 	kSnappyCompression supported: 1
+2026/05/04-14:49:02.766707 29440 Fast CRC32 supported: Not supported on x86
+2026/05/04-14:49:02.766708 29440 DMutex implementation: pthread_mutex_t
+2026/05/04-14:49:02.766772 29440 [WARN] [db/db_impl/db_impl_open.cc:2074] DB::Open() failed: IO error: While lock file: ./gossipsub_message_cache/LOCK: Resource temporarily unavailable
+2026/05/04-14:49:02.766805 29440 [db/db_impl/db_impl.cc:489] Shutdown: canceling all background work
+2026/05/04-14:49:02.766820 29440 [db/db_impl/db_impl.cc:692] Shutdown complete
